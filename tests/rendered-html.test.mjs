@@ -37,11 +37,11 @@ test("opens PlayStudy directly at the site root", async () => {
 
   const html = await response.text();
   assert.match(html, /id="app"/);
-  assert.match(html, /href="\/playstudy\/styles\.css\?v=22"/);
+  assert.match(html, /href="\/playstudy\/styles\.css\?v=23"/);
   assert.match(html, /href="\/manifest\.webmanifest"/);
-  assert.match(html, /src="\/pwa\.js\?v=22"/);
-  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=22"/);
-  assert.match(html, /src="\/playstudy\/app\.js\?v=22"/);
+  assert.match(html, /src="\/pwa\.js\?v=23"/);
+  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=23"/);
+  assert.match(html, /src="\/playstudy\/app\.js\?v=23"/);
   assert.doesNotMatch(html, /\/playstudy\/index\.html[^"']*redirect/i);
 });
 
@@ -83,7 +83,7 @@ test("ships an early root-scoped landscape PWA bootstrap", async () => {
   assert.match(appScript, /\$\('#install-guide'\)\?\.showModal\(\)/);
   assert.doesNotMatch(appScript, /\(state\.canInstall\|\|iosInstallCandidate\(\)\)\?[^:]+:''/);
   assert.match(rootWorker, /playstudy-shell-/);
-  assert.match(rootWorker, /v22/);
+  assert.match(rootWorker, /v23/);
   assert.match(rootWorker, /const SCOPE_URL = new URL\(self\.registration\.scope\)/);
   assert.match(rootWorker, /cache\.addAll\(APP_SHELL/);
   assert.match(rootWorker, /navigationPreload\.enable/);
@@ -93,14 +93,14 @@ test("ships an early root-scoped landscape PWA bootstrap", async () => {
   assert.match(legacyWorker, /registration\.unregister\(\)/);
   assert.match(rootWorker, /if \(!response\.ok\) throw new Error/);
   assert.match(rootWorker, /preload\?\.ok/);
-  assert.match(rootWorker, /player-gestures\.js\?v=22/);
+  assert.match(rootWorker, /player-gestures\.js\?v=23/);
   assert.match(rootWorker, /const SHELL_URL = scopedUrl\("launch\/"\)/);
   assert.match(legacyWorker, /const APP_ROOT = new URL\('\.\.\/', self\.registration\.scope\)\.toString\(\)/);
   assert.match(legacyWorker, /client\.navigate\(APP_ROOT\)/);
-  assert.match(pageSource, /<script defer src="\/pwa\.js\?v=22"/);
-  assert.match(pageSource, /<script defer src="\/playstudy\/player-gestures\.js\?v=22"/);
-  assert.match(pageSource, /<script defer src="\/playstudy\/app\.js\?v=22"/);
-  assert.match(pageSource, /href="\/playstudy\/styles\.css\?v=22"/);
+  assert.match(pageSource, /<script defer src="\/pwa\.js\?v=23"/);
+  assert.match(pageSource, /<script defer src="\/playstudy\/player-gestures\.js\?v=23"/);
+  assert.match(pageSource, /<script defer src="\/playstudy\/app\.js\?v=23"/);
+  assert.match(pageSource, /href="\/playstudy\/styles\.css\?v=23"/);
   assert.match(pageSource, /className="boot-screen"/);
   assert.match(gestures, /createTapSequence/);
   assert.match(appScript, /id='video-import-progress'/);
@@ -145,9 +145,9 @@ test("builds a complete root GitHub Pages PWA", async () => {
   assert.equal(legacyHtml, html);
   assert.equal(launchHtml, html);
   assert.match(html, /name="playstudy-root" content="\/"/);
-  assert.match(html, /src="\/pwa\.js\?v=22"/);
-  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=22"/);
-  assert.match(html, /src="\/playstudy\/app\.js\?v=22"/);
+  assert.match(html, /src="\/pwa\.js\?v=23"/);
+  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=23"/);
+  assert.match(html, /src="\/playstudy\/app\.js\?v=23"/);
   assert.match(pwaBootstrap, /serviceWorker\.register/);
   assert.match(worker, /playstudy-shell-/);
   assert.match(legacyWorker, /client\.navigate\(APP_ROOT\)/);
@@ -166,7 +166,7 @@ test("builds a complete root GitHub Pages PWA", async () => {
   assert.equal(projectManifest.start_url, "/playstudy-video-analysis/launch/");
   assert.equal(projectManifest.scope, "/playstudy-video-analysis/");
   assert.match(projectLegacyHtml, /name="playstudy-root" content="\/playstudy-video-analysis\/"/);
-  assert.match(projectLegacyHtml, /src="\/playstudy-video-analysis\/playstudy\/app\.js\?v=22"/);
+  assert.match(projectLegacyHtml, /src="\/playstudy-video-analysis\/playstudy\/app\.js\?v=23"/);
 });
 
 test("ships one unified player-first workflow", async () => {
@@ -254,13 +254,20 @@ test("ships a minimal native-like library and full-screen mobile player", async 
   assert.match(focus, /effect\.cumulative/);
   assert.match(focus, /data-focus-frame="-1"[^>]*>−1コマ/);
   assert.match(focus, /data-focus-frame="1"[^>]*>\+1コマ/);
+  assert.match(focus, /class="focus-frame-controls" role="group" aria-label="コマ送り"/);
+  assert.doesNotMatch(focus, /class="focus-frame-group"/);
   assert.match(focus, /setPointerCapture/);
+  assert.match(focus, /releasePointerCapture/);
   assert.match(focus, /state\.settings\.frameHoldMs\|\|160/);
   assert.match(focus, /holdDelay=setTimeout\(\(\)=>\{repeating=true/);
-  assert.match(focus, /\},420\)\}\);on\(button,'pointerup'/);
-  assert.match(focus, /on\(button,'pointercancel'/);
+  assert.match(focus, /on\(window,'pointerup',event=>stop\(true,event\),\{capture:true\}\)/);
+  assert.match(focus, /on\(window,'pointercancel',event=>stop\(false,event\),\{capture:true\}\)/);
   assert.match(focus, /on\(button,'lostpointercapture'/);
   assert.match(focus, /suppressFrameClickUntil=performance\.now\(\)\+420/);
+  assert.match(focus, /stage\.classList\.toggle\('is-frame-mode',frameMode\)/);
+  assert.match(focus, /if\(!frameMode\|\|event\.target\.closest\('\[data-focus-frame\]'\)\)return/);
+  assert.match(focus, /frameExitClickUntil=performance\.now\(\)\+520/);
+  assert.match(focus, /on\(window,'pointerup',releaseHold,\{capture:true\}\)/);
   assert.match(focus, /on\(window,'blur',stopTransientInput\)/);
   assert.match(focus, /fmt\(vid\.currentTime,performance\.now\(\)<frameTimePreciseUntil\)/);
   assert.match(focus, /vid\.playbackRate=2/);
@@ -273,6 +280,9 @@ test("ships a minimal native-like library and full-screen mobile player", async 
   assert.match(minimalStyles, /height:100dvh!important/);
   assert.match(minimalStyles, /\.focus-comment-sheet\.analysis-panel\{\s*position:fixed!important/);
   assert.match(minimalStyles, /box-shadow:none!important/);
+  assert.match(minimalStyles, /\.focus-stage\.is-frame-mode \.focus-play\{visibility:hidden;opacity:0;pointer-events:none/);
+  assert.match(minimalStyles, /\.focus-frame-controls\{position:absolute;right:/);
+  assert.match(minimalStyles, /justify-content:space-between;pointer-events:none/);
   assert.match(minimalStyles, /@media\(orientation:portrait\)/);
   assert.match(minimalStyles, /@media\(orientation:landscape\) and \(max-height:520px\)/);
   assert.match(minimalStyles, /min-width:44px/);

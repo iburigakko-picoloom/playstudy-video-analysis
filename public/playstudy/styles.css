@@ -430,7 +430,8 @@ body.player-active .focus-player{
  font-size:15px;
  font-weight:700
 }
-.focus-center-controls .focus-play{width:64px;height:64px;background:#fff;color:#111;font-size:23px}
+.focus-center-controls .focus-play{width:64px;height:64px;background:#fff;color:#111;font-size:23px;transition:opacity .14s,transform .14s,visibility .14s}
+.focus-stage.is-frame-mode .focus-play{visibility:hidden;opacity:0;pointer-events:none;transform:scale(.82)}
 .focus-bottom-controls{
  position:absolute;
  right:0;
@@ -444,7 +445,11 @@ body.player-active .focus-player{
 .focus-progress-row span:last-child{text-align:right}
 .focus-progress-row input{width:100%;height:32px;margin:0;accent-color:#fff}
 .focus-action-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
-.focus-frame-group{display:flex;align-items:center;gap:4px;margin-right:6px}
+.focus-frame-controls{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.focus-frame-controls .focus-frame-button{min-width:78px;height:44px;padding:0 12px;border:0;border-radius:9px;background:rgba(0,0,0,.5);color:#fff;font-size:13px;font-weight:750;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:background .12s,color .12s,transform .12s}
+.focus-stage.is-frame-mode .focus-frame-button{background:rgba(255,255,255,.3)}
+.focus-frame-controls .focus-frame-button.is-repeating{background:#fff;color:#111;transform:scale(1.04)}
+.focus-frame-controls .focus-frame-button:disabled{opacity:.38}
 .focus-action-row button{
  min-width:48px;
  height:44px;
@@ -456,8 +461,6 @@ body.player-active .focus-player{
  font-size:13px;
  font-weight:700
 }
-.focus-action-row .focus-frame-button{min-width:70px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
-.focus-action-row .focus-frame-button.is-repeating{background:#fff;color:#111}
 .focus-action-row button:disabled{opacity:.38}
 .focus-action-row .focus-comment-open{min-width:82px;background:#fff;color:#111}
 .focus-stage>.double-tap-feedback{z-index:95}
@@ -606,9 +609,8 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
  .focus-top-controls>button{min-width:40px;height:40px;padding:0 7px}
  .focus-top-controls>div{max-width:36vw}
  .focus-action-row{gap:4px}
- .focus-frame-group{gap:3px;margin-right:2px}
  .focus-action-row button{min-width:44px;padding-inline:7px}
- .focus-action-row .focus-frame-button{min-width:62px;padding-inline:6px;font-size:12px}
+ .focus-frame-controls .focus-frame-button{min-width:62px;padding-inline:6px;font-size:12px}
  .focus-action-row .focus-comment-open{min-width:66px}
  .focus-video-card{grid-template-columns:94px minmax(0,1fr)}
  .focus-video-thumb{width:94px}
