@@ -416,8 +416,10 @@ body.player-active .focus-player{
  display:flex;
  align-items:center;
  gap:clamp(22px,8vw,56px);
- transform:translate(-50%,-50%)
+ transform:translate(-50%,-50%);
+ transition:opacity .14s,transform .14s,visibility .14s
 }
+.focus-stage.is-frame-mode .focus-center-controls{visibility:hidden;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.9)}
 .focus-center-controls>button{
  display:grid;
  width:52px;
