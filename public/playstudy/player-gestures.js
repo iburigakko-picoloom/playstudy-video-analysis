@@ -204,5 +204,34 @@
     });
   }
 
-  return Object.freeze({ createTapSequence });
+  function calculateSeekTime({
+    mode,
+    startTime = 0,
+    startX = 0,
+    currentX,
+    trackLeft = 0,
+    trackWidth,
+    duration,
+  } = {}) {
+    if (mode !== 'tap' && mode !== 'drag') {
+      throw new TypeError('seek mode must be tap or drag');
+    }
+
+    for (const [name, value] of Object.entries({ currentX, trackLeft, trackWidth, duration })) {
+      if (!Number.isFinite(value)) throw new TypeError(`${name} must be finite`);
+    }
+
+    if (trackWidth <= 0 || duration <= 0) return 0;
+    if (mode === 'drag' && (!Number.isFinite(startTime) || !Number.isFinite(startX))) {
+      throw new TypeError('drag start values must be finite');
+    }
+
+    const time = mode === 'drag'
+      ? startTime + ((currentX - startX) / trackWidth) * duration
+      : ((currentX - trackLeft) / trackWidth) * duration;
+
+    return Math.min(duration, Math.max(0, time));
+  }
+
+  return Object.freeze({ createTapSequence, calculateSeekTime });
 });

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 await import('../public/playstudy/player-gestures.js');
 
-const { createTapSequence } = globalThis.PlayStudyGestures;
+const { createTapSequence, calculateSeekTime } = globalThis.PlayStudyGestures;
 
 function tap(machine, state, direction, at) {
   return machine.transition(state, { type: 'tap', direction, at });
@@ -187,4 +187,34 @@ test('rejects invalid configuration and non-monotonic events', () => {
     () => tap(machine, state, 'center', 120),
     /left or right/,
   );
+});
+
+test('seek tap goes to the touched position without marker snapping', () => {
+  assert.equal(calculateSeekTime({
+    mode: 'tap',
+    currentX: 375,
+    trackLeft: 75,
+    trackWidth: 400,
+    duration: 200,
+  }), 150);
+});
+
+test('seek drag moves relative to the time at pointer down', () => {
+  assert.equal(calculateSeekTime({
+    mode: 'drag',
+    startTime: 80,
+    startX: 300,
+    currentX: 350,
+    trackWidth: 500,
+    duration: 200,
+  }), 100);
+
+  assert.equal(calculateSeekTime({
+    mode: 'drag',
+    startTime: 5,
+    startX: 300,
+    currentX: 0,
+    trackWidth: 500,
+    duration: 200,
+  }), 0);
 });

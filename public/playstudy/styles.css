@@ -447,11 +447,11 @@ body.player-active .focus-player{
 .focus-progress-row span:last-child{text-align:right}
 .focus-seek-track{position:relative;width:100%;height:32px}
 .focus-seek-track input{position:relative;z-index:1;width:100%;height:32px;margin:0;accent-color:#fff;pointer-events:none}
-.focus-memo-markers{position:absolute;right:9px;top:1px;left:9px;z-index:3;height:12px;pointer-events:none}
-.focus-memo-marker{position:absolute;left:var(--memo-position);display:block;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#2f6df6;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translateX(-50%)}
+.focus-memo-markers{position:absolute;right:9px;top:50%;left:9px;z-index:3;height:0;pointer-events:none}
+.focus-memo-marker{position:absolute;top:0;left:var(--memo-position);display:block;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#2f6df6;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
 .focus-seek-hit{position:absolute;inset:0;z-index:4;cursor:ew-resize;touch-action:none}
 .focus-action-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
-.focus-frame-controls{position:absolute;right:max(28px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));left:max(28px,env(safe-area-inset-left));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.focus-frame-controls{position:absolute;right:max(clamp(44px,9vw,78px),calc(env(safe-area-inset-right) + 24px));bottom:max(10px,env(safe-area-inset-bottom));left:max(clamp(44px,9vw,78px),calc(env(safe-area-inset-left) + 24px));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
 .focus-frame-controls .focus-frame-button{min-width:92px;height:44px;padding:0 15px;border:0;border-radius:9px;background:rgba(0,0,0,.5);color:#fff;font-size:13px;font-weight:750;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:background .12s,color .12s,transform .12s}
 .focus-stage.is-frame-mode .focus-frame-button{background:rgba(255,255,255,.3)}
 .focus-frame-controls .focus-frame-button.is-repeating{background:#fff;color:#111;transform:scale(1.04)}
@@ -543,6 +543,14 @@ body.player-active .focus-player{
 }
 .focus-comment-compose textarea:focus{border-color:var(--blue);outline:2px solid var(--blue);outline-offset:1px}
 .focus-comment-error{min-height:20px;margin:4px 0 0;color:#d92d20;font-size:13px}
+.focus-comment-tags{display:flex;gap:7px;margin:0 0 10px;padding:2px 0 5px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.focus-comment-tags::-webkit-scrollbar{display:none}
+.focus-comment-tag{position:relative;flex:0 0 auto}
+.focus-comment-tag input{position:absolute;opacity:0;pointer-events:none}
+.focus-comment-tag span{display:block;min-height:36px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font-size:13px;font-weight:700;white-space:nowrap}
+.focus-comment-tag input:checked+span{border-color:var(--tag-color);background:color-mix(in srgb,var(--tag-color) 14%,var(--surface));color:var(--tag-color)}
+.focus-comment-tag input:focus-visible+span{outline:3px solid var(--blue);outline-offset:2px}
+.focus-comment-tags-empty{padding:7px 2px;color:var(--muted);font-size:13px}
 .focus-comment-actions{display:grid;grid-template-columns:1fr;gap:8px}
 .focus-comment-actions button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-weight:700}
 .focus-comment-actions button:last-child{border-color:var(--blue);background:var(--blue);color:#fff}
@@ -556,6 +564,9 @@ body.player-active .focus-player{
 .focus-memo-time{min-width:88px;padding:0 6px;text-align:left;font-variant-numeric:tabular-nums}
 .focus-memo-edit{padding:0 8px}
 .focus-memo-text{min-width:0;margin:0;padding-top:5px;color:var(--text);font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.focus-memo-copy{min-width:0}
+.focus-memo-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.focus-memo-tags span{padding:3px 7px;border-radius:999px;background:color-mix(in srgb,var(--tag-color) 13%,transparent);color:var(--tag-color);font-size:11px;font-weight:750}
 .focus-memo-empty{padding:28px 0;color:var(--muted);font-size:14px;text-align:center}
 .focus-library button:focus-visible,.focus-player button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
