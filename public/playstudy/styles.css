@@ -589,6 +589,8 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
 @keyframes show-boot-retry{to{visibility:visible}}
 
 @media(orientation:portrait){
+ .focus-bottom-controls{padding-bottom:max(22px,calc(env(safe-area-inset-bottom) + 8px))}
+ .focus-frame-controls{bottom:max(22px,calc(env(safe-area-inset-bottom) + 8px))}
  .focus-comment-sheet.analysis-panel{
   left:0!important;
   width:100vw!important;
@@ -613,7 +615,7 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
  .focus-center-controls .focus-play{width:56px;height:56px}
  .focus-bottom-controls{padding-top:2px;padding-bottom:max(5px,env(safe-area-inset-bottom))}
  .focus-action-row button{height:44px;min-width:44px}
- .focus-progress-row input{height:24px}
+ .focus-progress-row input{height:32px}
  .focus-comment-sheet.analysis-panel{width:min(370px,88vw)!important}
  .focus-comment-sheet>header{min-height:50px;padding-top:max(3px,env(safe-area-inset-top));padding-bottom:3px}
  .focus-comment-compose{padding:8px 13px}
