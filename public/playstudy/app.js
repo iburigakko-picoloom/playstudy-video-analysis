@@ -430,17 +430,29 @@ state.canInstall=!!pwaStatus().canPrompt;
 const standaloneMode=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const installedMode=()=>!!(pwaStatus().installed||standaloneMode());
 function preferLandscape(){if(!standaloneMode()||!screen.orientation?.lock)return;try{const result=screen.orientation.lock('landscape');result?.catch?.(()=>{})}catch{}}
-function captureFirstFrame(url){
- return new Promise(resolve=>{
-  const source=document.createElement('video');let settled=false,started=false;
-  const finish=(poster='')=>{if(settled)return;settled=true;clearTimeout(timeout);source.removeAttribute('src');source.load();resolve(poster)};
-  const draw=()=>{try{const maxWidth=640,scale=Math.min(1,maxWidth/(source.videoWidth||maxWidth)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round((source.videoWidth||640)*scale));canvas.height=Math.max(1,Math.round((source.videoHeight||360)*scale));canvas.getContext('2d').drawImage(source,0,0,canvas.width,canvas.height);finish(canvas.toDataURL('image/jpeg',.72))}catch{finish('')}};
-  const drawDecodedFrame=()=>source.requestVideoFrameCallback?source.requestVideoFrameCallback(()=>draw()):requestAnimationFrame(draw);
-  const prepare=()=>{if(started)return;started=true;const duration=Number.isFinite(source.duration)?source.duration:0,target=Math.min(.08,Math.max(0,duration*.01));const ready=()=>source.readyState>=2?drawDecodedFrame():source.addEventListener('loadeddata',drawDecodedFrame,{once:true});if(target>.001){source.addEventListener('seeked',ready,{once:true});try{source.currentTime=target}catch{ready()}}else ready()};
-  const timeout=setTimeout(()=>finish(''),8000);
-  source.preload='auto';source.muted=true;source.playsInline=true;source.addEventListener('loadedmetadata',prepare,{once:true});source.addEventListener('loadeddata',prepare,{once:true});source.addEventListener('error',()=>finish(''),{once:true});source.src=url;source.load();
- });
-}
+ function waitForVideoReady(source,events,timeout=7000){
+  return new Promise((resolve,reject)=>{
+   let settled=false;const names=events.split(' '),finish=error=>{if(settled)return;settled=true;clearTimeout(timer);names.forEach(name=>source.removeEventListener(name,onReady));source.removeEventListener('error',onError);error?reject(error):resolve()},onReady=()=>{if(source.readyState>=2&&source.videoWidth>0)finish()},onError=()=>finish(new Error('video frame unavailable')),timer=setTimeout(()=>finish(new Error('video frame timeout')),timeout);
+   names.forEach(name=>source.addEventListener(name,onReady));source.addEventListener('error',onError,{once:true});if(source.readyState>=2&&source.videoWidth>0)queueMicrotask(onReady)
+  })
+ }
+ function waitForDecodedFrame(source){
+  if(!source.requestVideoFrameCallback)return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  return new Promise(resolve=>{let settled=false;const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);resolve()},timer=setTimeout(finish,900);source.requestVideoFrameCallback(finish)})
+ }
+ function posterFromVideoFrame(source){
+  if(!source.videoWidth||!source.videoHeight)throw new Error('empty video frame');const maxWidth=480,scale=Math.min(1,maxWidth/source.videoWidth),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(source.videoWidth*scale));canvas.height=Math.max(1,Math.round(source.videoHeight*scale));const context=canvas.getContext('2d');if(!context)throw new Error('canvas unavailable');context.drawImage(source,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/jpeg',.68)
+ }
+ async function captureFirstFrame(url){
+  const source=document.createElement('video');source.preload='auto';source.muted=true;source.playsInline=true;source.setAttribute('playsinline','');source.setAttribute('webkit-playsinline','');source.setAttribute('aria-hidden','true');source.style.cssText='position:fixed;width:1px;height:1px;left:-9999px;top:-9999px;opacity:.001;pointer-events:none';document.body.appendChild(source);
+  try{
+   source.src=url;source.load();await waitForVideoReady(source,'loadedmetadata loadeddata canplay',9000);const duration=Number.isFinite(source.duration)?source.duration:0,candidates=[Math.min(.12,Math.max(0,duration*.02)),Math.min(.5,Math.max(0,duration*.1)),0].filter((time,index,list)=>list.findIndex(value=>Math.abs(value-time)<.002)===index);
+   for(const target of candidates){
+    try{if(Math.abs(source.currentTime-target)>.002){const seeked=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('seek timeout')),3500);source.addEventListener('seeked',()=>{clearTimeout(timer);resolve()},{once:true})});source.currentTime=target;await seeked}await waitForVideoReady(source,'loadeddata canplay seeked timeupdate',3500);await waitForDecodedFrame(source);const poster=posterFromVideoFrame(source);if(poster)return poster}catch(error){console.warn('thumbnail frame retry',target,error)}
+   }
+  }catch(error){console.warn('thumbnail capture failed',error)}finally{source.pause();source.removeAttribute('src');source.load();source.remove()}
+  return ''
+ }
 const waitForPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 function showVideoImportProgress(file,index,total,stage,phase){
  let overlay=$('#video-import-progress');
@@ -465,15 +477,17 @@ async function finishVideoImportProgress(success=true,message='再生画面を�
  const track=$('.video-import-track',overlay);track.setAttribute('aria-valuenow',success?'100':'0');$('span',track).style.width=success?'100%':'0%';
  await new Promise(resolve=>setTimeout(resolve,success?320:900));overlay.remove();
 }
-async function backfillFirstFramePosters(items=state.videos){
- let changed=false;
- for(const item of items){
-  if(state.screen!=='library')break;
-  if(item.poster)continue;
-  try{if(!item.src)await hydrateVideo(item);if(item.src){const poster=await captureFirstFrame(item.src);if(poster){item.poster=poster;changed=true}}}catch{}
+ const posterJobs=new Map();
+ async function ensureFirstFramePoster(item){
+  if(!item||item.poster||item.missingSource)return item?.poster||'';if(posterJobs.has(item.id))return posterJobs.get(item.id);
+  const job=(async()=>{try{if(!item.src&&STORED_VIDEO_MODES.has(item.storageMode))await hydrateVideo(item);if(!item.src)return '';const poster=await captureFirstFrame(item.src);if(poster){item.poster=poster;persist('videos')}return poster}catch(error){console.warn('thumbnail backfill failed',item.id,error);return ''}})();posterJobs.set(item.id,job);try{return await job}finally{if(posterJobs.get(item.id)===job)posterJobs.delete(item.id)}
  }
- if(changed){persist('videos');if(state.screen==='library')render()}
-}
+ let posterBackfillRunning=false;
+ async function backfillFirstFramePosters(items=state.videos){
+  if(posterBackfillRunning)return;posterBackfillRunning=true;let changed=false;
+  try{for(const item of items){if(item.poster||item.missingSource)continue;if(await ensureFirstFramePoster(item))changed=true}}finally{posterBackfillRunning=false}
+  if(changed&&state.screen==='library')render()
+ }
 async function requestPwaInstall(){
  if(installedMode())return toast('PlayStudyはインストール済みです');
  const result=await window.playStudyPWA?.install?.();
@@ -516,7 +530,7 @@ handleVideoFiles=async function(event){
     const storage=await storeVideoFile(id,file);storageMode=storage.mode;stored=true;showVideoImportProgress(file,index,files.length,.55,'動画情報を確認しています');
    const url=URL.createObjectURL(file),posterPromise=captureFirstFrame(url),meta=await probeVideo(url);
    showVideoImportProgress(file,index,files.length,.74,'最初の場面からサムネイルを作っています');
-   const poster=await posterPromise;showVideoImportProgress(file,index,files.length,.94,'再生画面を準備しています');
+   let poster=await posterPromise;if(!poster)poster=await captureFirstFrame(url);showVideoImportProgress(file,index,files.length,.94,'再生画面を準備しています');
    const folders=state.folders.filter(folder=>folder.projectId===state.activeProject),currentProject=project(state.activeProject);
     state.videos.unshift({id,title:file.name.replace(/\.[^.]+$/,''),fileName:file.name,mimeType:file.type,date:new Date(file.lastModified||Date.now()).toISOString().slice(0,10),durationLabel:fmt(meta.duration),durationSeconds:meta.duration,src:url,poster,projectId:state.activeProject,folderId:state.activeFolder!=='all'?state.activeFolder:(folders[0]?.id||''),favorite:false,last:0,lastSpeed:1,fps:Math.round(meta.fps||30),sportName:currentProject?.sportName||'',athlete:'',opponent:'',eventName:'',tagIds:[],freeMemo:'',storageMode,missingSource:false});
    added.push(id);showVideoImportProgress(file,index,files.length,.99,index===files.length-1?'保存が完了しました':'次の動画を準備しています');
@@ -527,7 +541,8 @@ handleVideoFiles=async function(event){
  }
  persist('videos');event.target.value='';event.target.disabled=false;
   if(added.length)await finishVideoImportProgress(true,added.length===1?'端末への保存が完了しました':`${added.length}本を端末に保存しました`);
-  if(state.simpleMode&&added.length===1&&files.length===1){state.activeVideo=added[0];route('player',added[0]);toast('保存しました。次回から選び直しは不要です')}else{render();if(added.length)toast(`${added.length}本を端末に保存しました`);if(failed)toast(`${failed}本は読み込めませんでした`)}
+   if(state.simpleMode&&added.length===1&&files.length===1){state.activeVideo=added[0];route('player',added[0]);toast('保存しました。次回から選び直しは不要です')}else{render();if(added.length)toast(`${added.length}本を端末に保存しました`);if(failed)toast(`${failed}本は読み込めませんでした`)}
+   const missingPosters=added.map(video).filter(item=>item&&!item.poster);if(missingPosters.length)backfillFirstFramePosters(missingPosters)
 };
 clearLegacyPosters();
 
@@ -714,7 +729,7 @@ function bindFocusPlayer(){
 const focusBaseBind=bind;
 bind=function(){
  if(state.screen==='player'){bindFocusPlayer();return}
- focusPlayerController?.abort();focusPlayerController=null;focusBaseBind();if(state.screen==='library')$$('[data-open-video][role="button"]').forEach(card=>card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();card.click()}}))
+ focusPlayerController?.abort();focusPlayerController=null;focusBaseBind();if(state.screen==='library'){$$('[data-open-video][role="button"]').forEach(card=>card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();card.click()}}));backfillFirstFramePosters()}
 };
 
 window.addEventListener('resize',()=>{document.documentElement.style.setProperty('--panel-pct',(state.settings.panelWidth||27)+'%')});

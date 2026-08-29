@@ -1,5 +1,5 @@
 const LEGACY_CACHES = /^playstudy-(?:v|shell-v)\d+(?:-|$)/;
-const ROOT_CACHE_TO_KEEP = 'playstudy-shell-v27';
+const ROOT_CACHE_TO_KEEP = 'playstudy-shell-v28';
 const APP_ROOT = new URL('../', self.registration.scope).toString();
 
 self.addEventListener('install', (event) => {
