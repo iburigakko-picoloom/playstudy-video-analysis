@@ -449,7 +449,7 @@ body.player-active .focus-player{
 .focus-seek-track input{position:relative;z-index:1;width:100%;height:32px;margin:0;accent-color:#fff;pointer-events:none}
 .focus-memo-markers{position:absolute;right:9px;top:50%;left:9px;z-index:3;height:0;pointer-events:none}
 .focus-memo-marker{position:absolute;top:0;left:var(--memo-position);display:block;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#2f6df6;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
-.focus-seek-hit{position:absolute;inset:0;z-index:4;cursor:ew-resize;touch-action:none}
+.focus-seek-hit{position:absolute;inset:0;z-index:4;cursor:ew-resize;pointer-events:auto;touch-action:none}
 .focus-action-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
 .focus-frame-controls{position:absolute;right:max(clamp(44px,9vw,78px),calc(env(safe-area-inset-right) + 24px));bottom:max(10px,env(safe-area-inset-bottom));left:max(clamp(44px,9vw,78px),calc(env(safe-area-inset-left) + 24px));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
 .focus-frame-controls .focus-frame-button{min-width:92px;height:44px;padding:0 15px;border:0;border-radius:9px;background:rgba(0,0,0,.5);color:#fff;font-size:13px;font-weight:750;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:background .12s,color .12s,transform .12s}

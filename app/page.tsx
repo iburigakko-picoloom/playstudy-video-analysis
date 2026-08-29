@@ -6,7 +6,7 @@ export default function Home() {
       {/* eslint-disable-next-line @next/next/no-css-tags */}
       <link
         rel="stylesheet"
-        href="/playstudy/styles.css?v=30"
+        href="/playstudy/styles.css?v=31"
         precedence="default"
       />
       <div id="app">
@@ -19,9 +19,9 @@ export default function Home() {
       </div>
       <input id="video-file" type="file" accept="video/*" multiple hidden />
       <input id="relink-file-global" type="file" accept="video/*" hidden />
-      <script defer src="/pwa.js?v=30" data-playstudy="pwa" />
-      <script defer src="/playstudy/player-gestures.js?v=30" data-playstudy="gestures" />
-      <script defer src="/playstudy/app.js?v=30" data-playstudy="app" />
+      <script defer src="/pwa.js?v=31" data-playstudy="pwa" />
+      <script defer src="/playstudy/player-gestures.js?v=31" data-playstudy="gestures" />
+      <script defer src="/playstudy/app.js?v=31" data-playstudy="app" />
     </>
   );
 }
