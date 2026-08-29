@@ -447,8 +447,8 @@ body.player-active .focus-player{
 .focus-progress-row span:last-child{text-align:right}
 .focus-progress-row input{width:100%;height:32px;margin:0;accent-color:#fff}
 .focus-action-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
-.focus-frame-controls{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
-.focus-frame-controls .focus-frame-button{min-width:78px;height:44px;padding:0 12px;border:0;border-radius:9px;background:rgba(0,0,0,.5);color:#fff;font-size:13px;font-weight:750;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:background .12s,color .12s,transform .12s}
+.focus-frame-controls{position:absolute;right:max(28px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));left:max(28px,env(safe-area-inset-left));z-index:4;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.focus-frame-controls .focus-frame-button{min-width:92px;height:44px;padding:0 15px;border:0;border-radius:9px;background:rgba(0,0,0,.5);color:#fff;font-size:13px;font-weight:750;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:background .12s,color .12s,transform .12s}
 .focus-stage.is-frame-mode .focus-frame-button{background:rgba(255,255,255,.3)}
 .focus-frame-controls .focus-frame-button.is-repeating{background:#fff;color:#111;transform:scale(1.04)}
 .focus-frame-controls .focus-frame-button:disabled{opacity:.38}
@@ -612,7 +612,7 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
  .focus-top-controls>div{max-width:36vw}
  .focus-action-row{gap:4px}
  .focus-action-row button{min-width:44px;padding-inline:7px}
- .focus-frame-controls .focus-frame-button{min-width:62px;padding-inline:6px;font-size:12px}
+ .focus-frame-controls .focus-frame-button{min-width:70px;padding-inline:8px;font-size:12px}
  .focus-action-row .focus-comment-open{min-width:66px}
  .focus-video-card{grid-template-columns:94px minmax(0,1fr)}
  .focus-video-thumb{width:94px}
