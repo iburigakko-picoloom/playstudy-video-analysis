@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "playstudy-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v25`;
+const CACHE_NAME = `${CACHE_PREFIX}v26`;
 const SCOPE_URL = new URL(self.registration.scope);
 const scopedUrl = (path = "") => new URL(path.replace(/^\//, ""), SCOPE_URL).toString();
 const ROOT_URL = scopedUrl("");
@@ -8,10 +8,10 @@ const APP_SHELL = [
   SHELL_URL,
   ROOT_URL,
   scopedUrl("manifest.webmanifest"),
-  scopedUrl("pwa.js?v=25"),
-  scopedUrl("playstudy/styles.css?v=25"),
-  scopedUrl("playstudy/player-gestures.js?v=25"),
-  scopedUrl("playstudy/app.js?v=25"),
+  scopedUrl("pwa.js?v=26"),
+  scopedUrl("playstudy/styles.css?v=26"),
+  scopedUrl("playstudy/player-gestures.js?v=26"),
+  scopedUrl("playstudy/app.js?v=26"),
   scopedUrl("playstudy/icons/icon-192.png"),
   scopedUrl("playstudy/icons/icon-512.png"),
   scopedUrl("playstudy/icons/icon-maskable-512.png"),
