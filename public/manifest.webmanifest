@@ -1,10 +1,10 @@
 {
-  "id": "/playstudy-v2",
+  "id": "/",
   "name": "PlayStudy - スポーツ動画研究",
   "short_name": "PlayStudy",
   "description": "動画を開き、横画面で確認しながら気づきを残せるスポーツ動画学習ツール。",
   "lang": "ja",
-  "start_url": "/launch/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

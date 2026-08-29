@@ -45,7 +45,7 @@ test("navigation 404 falls back to the cached app shell", async () => {
   const { networkFirst } = loadWorker(async () => new Response("missing", { status: 404 }));
   const response = await networkFirst(
     new Request("https://example.test/app/playstudy/index.html"),
-    "https://example.test/app/launch/",
+    "https://example.test/app/",
   );
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "cached shell");
@@ -55,7 +55,7 @@ test("navigation network failure falls back to the cached app shell", async () =
   const { networkFirst } = loadWorker(async () => { throw new Error("offline"); });
   const response = await networkFirst(
     new Request("https://example.test/app/"),
-    "https://example.test/app/launch/",
+    "https://example.test/app/",
   );
   assert.equal(await response.text(), "cached shell");
 });
@@ -63,20 +63,20 @@ test("navigation network failure falls back to the cached app shell", async () =
 test("successful navigation refreshes the canonical cached shell", async () => {
   const { networkFirst, puts } = loadWorker(async () => new Response("fresh shell", { status: 200 }));
   const response = await networkFirst(
-    new Request("https://example.test/app/launch/"),
-    "https://example.test/app/launch/",
+    new Request("https://example.test/app/"),
+    "https://example.test/app/",
   );
   assert.equal(await response.text(), "fresh shell");
   assert.equal(puts.length, 1);
-  assert.equal(puts[0][0], "https://example.test/app/launch/");
+  assert.equal(puts[0][0], "https://example.test/app/");
   assert.equal(await puts[0][1].text(), "fresh shell");
 });
 
-test("ordinary browsing cannot replace the cached launch shell", async () => {
+test("ordinary subpath browsing cannot replace the cached root shell", async () => {
   const { networkFirst, puts } = loadWorker(async () => new Response("root page", { status: 200 }));
   const response = await networkFirst(
-    new Request("https://example.test/app/"),
-    "https://example.test/app/launch/",
+    new Request("https://example.test/app/playstudy/index.html"),
+    "https://example.test/app/",
   );
   assert.equal(await response.text(), "root page");
   assert.equal(puts.length, 0);

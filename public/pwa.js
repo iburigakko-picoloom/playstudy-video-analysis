@@ -1,6 +1,8 @@
 document.documentElement.setAttribute("data-pwa-boot", "started");
 (() => {
-  const INSTALLED_KEY = "playstudy_pwa_installed_v2";
+  // Bump this key when the install identity changes so a removed/broken old icon
+  // never prevents the user from installing the current app again.
+  const INSTALLED_KEY = "playstudy_pwa_installed_v3";
   const rootMeta = document.querySelector('meta[name="playstudy-root"]')?.content || "/";
   const rootUrl = new URL(rootMeta, location.href);
   const standalone = () =>

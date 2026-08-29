@@ -28,8 +28,8 @@ await writeFile(join(outputRoot, "playstudy", "index.html"), html);
 await writeFile(join(outputRoot, "launch", "index.html"), html);
 
 const manifest = JSON.parse(await readFile(join(publicRoot, "manifest.webmanifest"), "utf8"));
-manifest.id = `${basePath}playstudy-v2`;
-manifest.start_url = `${basePath}launch/`;
+manifest.id = basePath;
+manifest.start_url = basePath;
 manifest.scope = basePath;
 manifest.icons = manifest.icons.map((icon) => ({
   ...icon,
