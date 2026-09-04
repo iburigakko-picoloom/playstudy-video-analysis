@@ -643,3 +643,59 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
  .focus-hud,.focus-sheet-backdrop,.focus-comment-sheet{transition:none!important}
  .focus-player-status>span{animation-duration:1.8s}
 }
+
+/* Pinch zoom stays inside the video instead of zooming the whole page. */
+.focus-stage{touch-action:none!important}
+.focus-stage.is-zoomed{cursor:grab}
+.focus-stage.is-zoomed:active{cursor:grabbing}
+.focus-zoom-level{position:absolute;left:50%;top:50%;z-index:58;min-width:54px;padding:9px 12px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:15px;font-weight:800;text-align:center;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.92);transition:opacity .14s,transform .14s}
+.focus-zoom-level.is-visible{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+/* Compact research workspace */
+.research-page .topbar{min-height:48px}
+.research-page .research-compact{max-width:1180px;padding:8px 10px 22px}
+.research-page .theme-tabs{gap:5px;margin:0 0 7px;padding-bottom:1px}
+.research-page .theme-tabs .chip{min-height:32px;padding:6px 10px;font-size:12px}
+.research-compact-summary{padding:10px 11px;border-radius:12px}
+.research-compact-summary .theme-title-row{align-items:center}
+.research-compact-summary h2{margin:0;font-size:19px;line-height:1.25}
+.research-question{max-width:760px;margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.35}
+.research-compact-summary .status-row{gap:5px;margin-top:8px}
+.research-compact-summary .status-row .chip{min-height:26px;padding:4px 8px;font-size:11px}
+.research-page .section{margin-top:9px}
+.research-page .section-head{min-height:34px;margin-bottom:5px}
+.research-page .section-head h3{font-size:15px}
+.research-board-actions{display:flex;align-items:center;gap:6px}
+.research-page .research-board{grid-template-columns:repeat(4,minmax(132px,1fr));gap:6px;padding-bottom:3px}
+.research-page .lane{min-height:136px;padding:6px;border-radius:11px}
+.research-page .lane-head{margin-bottom:5px;font-size:12px}
+.research-page .lane-drop{min-height:88px}
+.research-page .lane-empty{padding:10px 5px;font-size:11px}
+.research-page .scene-card{padding:5px;margin-bottom:5px;border-radius:9px}
+.research-page .scene-card .thumb{aspect-ratio:16/8;border-radius:6px}
+.research-page .scene-card h5{margin:5px 0 2px;font-size:13px;line-height:1.25}
+.research-page .scene-card .meta,.research-card-kind{color:var(--muted);font-size:11px}
+.research-page .scene-card p{display:-webkit-box;margin:4px 0;color:var(--muted);font-size:12px;line-height:1.35;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.research-page .scene-card .mini-actions{gap:4px;margin-top:5px}
+.research-page .scene-card .mini-actions button,.research-page .scene-card .research-link{min-height:30px;padding:5px 7px;font-size:12px}
+.research-page .compare-mini{height:32px;border-radius:6px;font-size:17px}
+.compact-unsorted .unsorted-row{gap:6px;padding:6px;border-radius:10px}
+.compact-unsorted .scene-card{min-width:132px;max-width:154px}
+.research-insights{margin-top:9px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.research-insights>summary{padding:10px 12px;font-size:13px;font-weight:800;cursor:pointer}
+.research-insight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;border-top:1px solid var(--line);background:var(--line)}
+.research-insight-grid section{min-width:0;padding:9px 11px;background:var(--surface)}
+.research-insight-grid b{font-size:12px}
+.research-insight-grid p{margin:4px 0 0;font-size:13px;line-height:1.4}
+.research-stat-row{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--line)}
+.research-stat-row span{padding:4px 7px;border-radius:999px;background:var(--surface-2);font-size:11px}
+.research-stat-row i{display:inline-block;width:7px;height:7px;margin-right:4px;border-radius:50%}
+.research-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.compact-theme-form textarea{min-height:62px}
+.compact-link-checks{max-height:110px;overflow:auto}
+
+@media(max-width:600px){
+ .research-page .research-board{grid-template-columns:repeat(4,minmax(132px,1fr));overflow-x:auto}
+ .research-insight-grid,.research-form-grid{grid-template-columns:1fr}
+ .research-insight-grid section{padding:8px 10px}
+}
