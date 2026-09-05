@@ -1,17 +1,16 @@
-const CACHE_PREFIX = "playstudy-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v33`;
 const SCOPE_URL = new URL(self.registration.scope);
+// Cache Storage is shared by all PWAs on an origin, even with different scopes.
+const CACHE_PREFIX = `playstudy-shell-${encodeURIComponent(SCOPE_URL.pathname)}-`;
+const CACHE_NAME = `${CACHE_PREFIX}v34`;
 const scopedUrl = (path = "") => new URL(path.replace(/^\//, ""), SCOPE_URL).toString();
-const ROOT_URL = scopedUrl("");
-const SHELL_URL = ROOT_URL;
+const SHELL_URL = scopedUrl("playstudy/index.html");
 const APP_SHELL = [
   SHELL_URL,
-  ROOT_URL,
   scopedUrl("manifest.webmanifest"),
-  scopedUrl("pwa.js?v=33"),
-  scopedUrl("playstudy/styles.css?v=33"),
-  scopedUrl("playstudy/player-gestures.js?v=33"),
-  scopedUrl("playstudy/app.js?v=33"),
+  scopedUrl("pwa.js?v=34"),
+  scopedUrl("playstudy/styles.css?v=34"),
+  scopedUrl("playstudy/player-gestures.js?v=34"),
+  scopedUrl("playstudy/app.js?v=34"),
   scopedUrl("playstudy/icons/icon-192.png"),
   scopedUrl("playstudy/icons/icon-512.png"),
   scopedUrl("playstudy/icons/icon-maskable-512.png"),
@@ -21,9 +20,9 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
+    // addAll is atomic and rejects duplicate requests. Only activate a complete shell.
     await cache.addAll(APP_SHELL.map((url) => new Request(url, {
-      cache: "reload",
-      credentials: "same-origin"
+      cache: "reload", credentials: "same-origin"
     })));
     await self.skipWaiting();
   })());
@@ -31,33 +30,31 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    const cacheNames = await caches.keys();
-    await Promise.all(
-      cacheNames
-        .filter((name) => name.startsWith("playstudy-") && name !== CACHE_NAME)
-        .map((name) => caches.delete(name))
-    );
-    if (self.registration.navigationPreload) {
-      await self.registration.navigationPreload.enable();
-    }
+    const names = await caches.keys();
+    await Promise.all(names.filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .map((name) => caches.delete(name)));
+    await self.registration.navigationPreload?.disable();
     await self.clients.claim();
   })());
 });
 
-async function networkFirst(request, fallbackUrl) {
+async function appNavigation() {
   const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(SHELL_URL);
+  if (cached) return cached;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(request);
+    const response = await fetch(new Request(SHELL_URL, { cache: "reload", signal: controller.signal }));
     if (!response.ok) throw new Error(`Navigation failed with ${response.status}`);
-    if (new URL(request.url).pathname === new URL(fallbackUrl).pathname) {
-      await cache.put(fallbackUrl, response.clone());
-    }
     return response;
   } catch {
-    return (await cache.match(fallbackUrl)) || new Response(
-      "<!doctype html><html lang=\"ja\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>PlayStudy</title><body><main><h1>PlayStudy</h1><p>オフライン起動の準備中です。通信が戻ったら、もう一度開いてください。</p></main></body></html>",
+    return new Response(
+      '<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>PlayStudy</title><body><main><h1>PlayStudy</h1><p>起動に必要なデータを読み込めませんでした。通信を確認して再度開いてください。</p><a href="">もう一度開く</a></main></body></html>',
       { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -65,36 +62,18 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== SCOPE_URL.origin) return;
-
-  if (request.mode === "navigate") {
-    event.respondWith((async () => {
-      const preload = await event.preloadResponse;
-      if (preload?.ok) {
-        if (url.pathname === new URL(SHELL_URL).pathname) {
-          const cache = await caches.open(CACHE_NAME);
-          await cache.put(SHELL_URL, preload.clone());
-        }
-        return preload;
-      }
-      return networkFirst(request, SHELL_URL);
-    })());
+  const relativePath = url.pathname.startsWith(SCOPE_URL.pathname)
+    ? url.pathname.slice(SCOPE_URL.pathname.length) : null;
+  // Root-scoped historical installs must not intercept the project-scoped PWA.
+  if (request.mode === "navigate" && ["", "index.html", "launch", "launch/", "launch/index.html", "playstudy", "playstudy/", "playstudy/index.html"].includes(relativePath)) {
+    event.respondWith(appNavigation());
     return;
   }
-
   if (APP_SHELL.includes(url.toString())) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request, { ignoreSearch: false });
-      const refresh = fetch(new Request(request, { cache: "no-cache" }))
-        .then(async (response) => {
-          if (response.ok) await cache.put(request, response.clone());
-          return response;
-        });
-      if (cached) {
-        event.waitUntil(refresh.catch(() => undefined));
-        return cached;
-      }
-      return refresh;
+      // Keep HTML and versioned assets together until the next worker installs.
+      return (await cache.match(request)) || fetch(request);
     })());
   }
 });

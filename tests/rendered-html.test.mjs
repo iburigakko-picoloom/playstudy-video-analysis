@@ -37,11 +37,11 @@ test("opens PlayStudy directly at the site root", async () => {
 
   const html = await response.text();
   assert.match(html, /id="app"/);
-  assert.match(html, /href="\/playstudy\/styles\.css\?v=33"/);
+  assert.match(html, /href="\/playstudy\/styles\.css\?v=34"/);
   assert.match(html, /href="\/manifest\.webmanifest"/);
-  assert.match(html, /src="\/pwa\.js\?v=33"/);
-  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=33"/);
-  assert.match(html, /src="\/playstudy\/app\.js\?v=33"/);
+  assert.match(html, /src="\/pwa\.js\?v=34"/);
+  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=34"/);
+  assert.match(html, /src="\/playstudy\/app\.js\?v=34"/);
   assert.doesNotMatch(html, /\/playstudy\/index\.html[^"']*redirect/i);
 });
 
@@ -83,24 +83,23 @@ test("ships an early root-scoped landscape PWA bootstrap", async () => {
   assert.match(appScript, /\$\('#install-guide'\)\?\.showModal\(\)/);
   assert.doesNotMatch(appScript, /\(state\.canInstall\|\|iosInstallCandidate\(\)\)\?[^:]+:''/);
   assert.match(rootWorker, /playstudy-shell-/);
-  assert.match(rootWorker, /v33/);
+  assert.match(rootWorker, /v34/);
   assert.match(rootWorker, /const SCOPE_URL = new URL\(self\.registration\.scope\)/);
   assert.match(rootWorker, /cache\.addAll\(APP_SHELL/);
-  assert.match(rootWorker, /navigationPreload\.enable/);
-  assert.match(rootWorker, /name\.startsWith\("playstudy-"\)/);
+  assert.match(rootWorker, /navigationPreload\?\.disable/);
+  assert.match(rootWorker, /name\.startsWith\(CACHE_PREFIX\)/);
   assert.match(rootWorker, /new Response\(/);
   assert.doesNotMatch(rootWorker, /share-target/);
   assert.match(legacyWorker, /registration\.unregister\(\)/);
   assert.match(rootWorker, /if \(!response\.ok\) throw new Error/);
-  assert.match(rootWorker, /preload\?\.ok/);
-  assert.match(rootWorker, /player-gestures\.js\?v=33/);
-  assert.match(rootWorker, /const SHELL_URL = ROOT_URL/);
-  assert.match(legacyWorker, /const APP_ROOT = new URL\('\.\.\/', self\.registration\.scope\)\.toString\(\)/);
-  assert.match(legacyWorker, /client\.navigate\(APP_ROOT\)/);
-  assert.match(pageSource, /<script defer src="\/pwa\.js\?v=33"/);
-  assert.match(pageSource, /<script defer src="\/playstudy\/player-gestures\.js\?v=33"/);
-  assert.match(pageSource, /<script defer src="\/playstudy\/app\.js\?v=33"/);
-  assert.match(pageSource, /href="\/playstudy\/styles\.css\?v=33"/);
+  assert.match(rootWorker, /appNavigation\(\)/);
+  assert.match(rootWorker, /player-gestures\.js\?v=34/);
+  assert.match(rootWorker, /const SHELL_URL = scopedUrl\("playstudy\/index.html"\)/);
+  assert.doesNotMatch(legacyWorker, /client\.navigate|caches\.delete/);
+  assert.match(pageSource, /<script defer src="\/pwa\.js\?v=34"/);
+  assert.match(pageSource, /<script defer src="\/playstudy\/player-gestures\.js\?v=34"/);
+  assert.match(pageSource, /<script defer src="\/playstudy\/app\.js\?v=34"/);
+  assert.match(pageSource, /href="\/playstudy\/styles\.css\?v=34"/);
   assert.match(pageSource, /className="boot-screen"/);
   assert.match(gestures, /createTapSequence/);
   assert.match(appScript, /id='video-import-progress'/);
@@ -150,12 +149,12 @@ test("builds a complete root GitHub Pages PWA", async () => {
   assert.equal(legacyHtml, html);
   assert.equal(launchHtml, html);
   assert.match(html, /name="playstudy-root" content="\/"/);
-  assert.match(html, /src="\/pwa\.js\?v=33"/);
-  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=33"/);
-  assert.match(html, /src="\/playstudy\/app\.js\?v=33"/);
+  assert.match(html, /src="\/pwa\.js\?v=34"/);
+  assert.match(html, /src="\/playstudy\/player-gestures\.js\?v=34"/);
+  assert.match(html, /src="\/playstudy\/app\.js\?v=34"/);
   assert.match(pwaBootstrap, /serviceWorker\.register/);
   assert.match(worker, /playstudy-shell-/);
-  assert.match(legacyWorker, /client\.navigate\(APP_ROOT\)/);
+  assert.doesNotMatch(legacyWorker, /client\.navigate|caches\.delete/);
   assert.match(gestures, /createTapSequence/);
 
   await execFileAsync(process.execPath, ["scripts/build-github-pages.mjs"], {
@@ -171,7 +170,7 @@ test("builds a complete root GitHub Pages PWA", async () => {
   assert.equal(projectManifest.start_url, "/playstudy-video-analysis/");
   assert.equal(projectManifest.scope, "/playstudy-video-analysis/");
   assert.match(projectLegacyHtml, /name="playstudy-root" content="\/playstudy-video-analysis\/"/);
-  assert.match(projectLegacyHtml, /src="\/playstudy-video-analysis\/playstudy\/app\.js\?v=33"/);
+  assert.match(projectLegacyHtml, /src="\/playstudy-video-analysis\/playstudy\/app\.js\?v=34"/);
 });
 
 test("ships one unified player-first workflow", async () => {

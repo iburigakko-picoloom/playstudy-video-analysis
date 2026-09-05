@@ -28,7 +28,7 @@ await writeFile(join(outputRoot, "playstudy", "index.html"), html);
 await writeFile(join(outputRoot, "launch", "index.html"), html);
 
 const manifest = JSON.parse(await readFile(join(publicRoot, "manifest.webmanifest"), "utf8"));
-manifest.id = basePath;
+manifest.id = process.env.PAGES_MANIFEST_ID || basePath;
 manifest.start_url = basePath;
 manifest.scope = basePath;
 manifest.icons = manifest.icons.map((icon) => ({
@@ -39,6 +39,10 @@ await writeFile(join(outputRoot, "manifest.webmanifest"), `${JSON.stringify(mani
 
 await cp(join(publicRoot, "sw.js"), join(outputRoot, "sw.js"));
 await cp(join(publicRoot, "pwa.js"), join(outputRoot, "pwa.js"));
+const recovery = (await readFile(join(publicRoot, "recover.html"), "utf8"))
+  .replace('name="playstudy-root" content="/"', `name="playstudy-root" content="${basePath}"`)
+  .replace('src="/pwa.js', `src="${basePath}pwa.js`);
+await writeFile(join(outputRoot, "recover.html"), recovery);
 await cp(join(publicRoot, "playstudy", "sw.js"), join(outputRoot, "playstudy", "sw.js"));
 await cp(join(publicRoot, "playstudy", "player-gestures.js"), join(outputRoot, "playstudy", "player-gestures.js"));
 await cp(join(publicRoot, "playstudy", "app.js"), join(outputRoot, "playstudy", "app.js"));

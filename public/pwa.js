@@ -76,6 +76,22 @@ document.documentElement.setAttribute("data-pwa-boot", "started");
     },
     async update() {
       await registration?.update();
+    },
+    async repair() {
+      await register();
+      if (!registration) throw new Error("起動準備ができません。Chromeで開いて通信を確認してください。");
+      await registration.update();
+      const cacheName = `playstudy-shell-${encodeURIComponent(rootUrl.pathname)}-v34`;
+      const shellUrl = new URL("playstudy/index.html", rootUrl).href;
+      const deadline = Date.now() + 20000;
+      while (Date.now() < deadline) {
+        const cache = await caches.open(cacheName);
+        if (registration.active?.state === "activated" && !registration.installing && !registration.waiting && await cache.match(shellUrl)) {
+          return { ready: true, url: rootUrl.href };
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      throw new Error("起動データを読み込めませんでした。通信を確認してもう一度お試しください。");
     }
   };
 
@@ -92,7 +108,6 @@ document.documentElement.setAttribute("data-pwa-boot", "started");
         scope: rootUrl.pathname,
         updateViaCache: "none"
       });
-      await registration.update();
       const trackWorker = (worker) => worker?.addEventListener("statechange", notify);
       registration.addEventListener("updatefound", () => {
         trackWorker(registration.installing);
@@ -101,6 +116,7 @@ document.documentElement.setAttribute("data-pwa-boot", "started");
       trackWorker(registration.installing);
       trackWorker(registration.waiting);
       trackWorker(registration.active);
+      registration.update().catch((error) => { registrationError = error; notify(); });
     } catch (error) {
       registrationError = error;
     }
@@ -108,4 +124,16 @@ document.documentElement.setAttribute("data-pwa-boot", "started");
   };
 
   register();
+
+  // An early script error must not leave an unresponsive startup screen.
+  setTimeout(() => {
+    const message = document.querySelector("[data-boot-message]");
+    if (!message) return;
+    message.textContent = "起動を完了できませんでした";
+    const retry = document.querySelector(".boot-retry");
+    if (retry) {
+      retry.textContent = "起動を修復";
+      retry.href = new URL("recover.html", rootUrl).href;
+    }
+  }, 12000);
 })();
