@@ -37,13 +37,20 @@
         if(!Array.isArray(value))throw new Error(key+' の形式が正しくありません');
         const ids=new Set();
         for(const item of value){
-          if(!object(item)||typeof item.id!=='string'||!item.id||ids.has(item.id))throw new Error(key+' のIDが正しくありません');
+          if(!object(item)||typeof item.id!=='string'||! /^[a-zA-Z0-9_-]+$/.test(item.id)||ids.has(item.id))throw new Error(key+' のIDが正しくありません');
           ids.add(item.id);
         }
       }else if(!object(value))throw new Error(key+' の形式が正しくありません');
       data[key]=clone(value);
     }
     const videoIds=new Set(data.videos.map(item=>item.id));
+    for(const card of data.researchCards){
+      if(card.type==='link'&&card.url&&!/^https?:\/\/[^\s"<>]+$/i.test(card.url))throw new Error('リンクの形式が正しくありません');
+      if(card.imageData&&!/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=\r\n]*$/.test(card.imageData))throw new Error('画像の形式が正しくありません');
+    }
+    for(const video of data.videos){
+      if(video.poster&&!/^(data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=\r\n]*|https?:\/\/[^\s"<>]+|blob:[^\s"<>]+)$/.test(video.poster))throw new Error('サムネイルの形式が正しくありません');
+    }
     for(const key of ['notes','scenes','tagEvents','drawings']){
       for(const item of data[key]){
         if(!videoIds.has(item.videoId))throw new Error('元動画がない記録が含まれています');
@@ -76,5 +83,24 @@
     if(note.type==='range'){result.start=time;result.end=end}
     return result;
   }
-  return {createStore,validateBackup,remapVideo,linkedThemeIds,updateNote};
+  async function buildBackup({data,includeVideos,readVideo,encode,signal,onProgress=()=>{},limit=240*1024*1024}){
+    const parts=[],encoder=new TextEncoder();let bytes=0,completed=0;
+    const check=()=>{if(signal?.aborted)throw new Error('バックアップを中止しました')};
+    const append=text=>{check();bytes+=encoder.encode(text).byteLength;if(bytes>limit)throw new Error('動画込みでは容量上限を超えます。メモをバックアップし、元動画は別に保管してください');parts.push(text)};
+    append(JSON.stringify({version:3,exportedAt:new Date().toISOString(),includeVideos,data}).slice(0,-1)+',"videoFiles":{');
+    const videos=includeVideos?data.videos:[];
+    for(const video of videos){
+      check();onProgress({completed,total:videos.length,bytes,name:video.title});
+      let blob;try{blob=await readVideo(video)}catch{throw new Error('動画を読み込めません：'+(video.title||video.id)+'。バックアップは作成していません')}
+      if(!blob)throw new Error('動画が見つかりません：'+(video.title||video.id)+'。再選択するか、メモのみをバックアップしてください');
+      if(bytes+Math.ceil(blob.size/3)*4+1024>limit)throw new Error('動画込みでは容量上限を超えます。メモをバックアップし、元動画は別に保管してください');
+      const type=video.mimeType||blob.type||'video/mp4';
+      append((completed?',':'')+JSON.stringify(video.id)+':'+JSON.stringify({name:video.fileName||video.title||video.id,type}).slice(0,-1)+',"data":"data:'+type.replace(/[^a-zA-Z0-9/+.\-]/g,'')+';base64,');
+      // Every non-final chunk is divisible by three, so base64 can be concatenated.
+      for(let offset=0;offset<blob.size;offset+=192*1024){check();append(await encode(blob.slice(offset,offset+192*1024)));onProgress({completed,total:videos.length,bytes,name:video.title});await new Promise(resolve=>setTimeout(resolve,0))}
+      append('"}');completed++;onProgress({completed,total:videos.length,bytes,name:video.title});
+    }
+    append('}}');check();return {blob:new Blob(parts,{type:'application/json'}),completed,bytes};
+  }
+  return {createStore,validateBackup,remapVideo,linkedThemeIds,updateNote,buildBackup};
 });

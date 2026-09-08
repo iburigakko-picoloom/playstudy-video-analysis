@@ -723,6 +723,17 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
 }
 
 /* Touch-friendly research controls take precedence over compact desktop rules. */
+.research-filters{display:flex;gap:8px;overflow-x:auto;padding:8px 0 14px}
+.research-filters button{flex:none;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:14px}
+.research-filters button[aria-pressed=true]{background:#245ccd;color:white;border-color:#245ccd}
+.research-material-list{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.research-material{min-width:0}
+.research-material .scene-card{margin:0;min-width:0}
+.research-material-lane{display:block;font-size:14px;margin:0 0 6px}
+.research-optional summary{min-height:44px;padding:12px 0;cursor:pointer;font-size:16px}
+#focus-precise-seek{min-height:44px;font-size:14px}
+#focus-precise-seek[aria-pressed=true]{background:#245ccd;color:white}
+#backup-status{font-size:14px;overflow-wrap:anywhere}
 .research-page .theme-tabs .chip,.research-page .scene-card .mini-actions button,.research-page .scene-card .research-link{min-height:44px;font-size:14px}
 .research-page .scene-card h5{font-size:15px}
 .research-page .scene-card p,.research-page .lane-head{font-size:14px}

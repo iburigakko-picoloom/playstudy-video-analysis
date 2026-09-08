@@ -212,6 +212,7 @@
     trackLeft = 0,
     trackWidth,
     duration,
+    dragSpan = duration,
   } = {}) {
     if (mode !== 'tap' && mode !== 'drag') {
       throw new TypeError('seek mode must be tap or drag');
@@ -227,7 +228,7 @@
     }
 
     const time = mode === 'drag'
-      ? startTime + ((currentX - startX) / trackWidth) * duration
+      ? startTime + ((currentX - startX) / trackWidth) * Math.min(duration,Math.max(0,Number.isFinite(dragSpan)?dragSpan:duration))
       : ((currentX - trackLeft) / trackWidth) * duration;
 
     return Math.min(duration, Math.max(0, time));

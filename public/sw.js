@@ -1,17 +1,17 @@
 const SCOPE_URL = new URL(self.registration.scope);
 // Cache Storage is shared by all PWAs on an origin, even with different scopes.
 const CACHE_PREFIX = `playstudy-shell-${encodeURIComponent(SCOPE_URL.pathname)}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v35`;
+const CACHE_NAME = `${CACHE_PREFIX}v36`;
 const scopedUrl = (path = "") => new URL(path.replace(/^\//, ""), SCOPE_URL).toString();
 const SHELL_URL = scopedUrl("playstudy/index.html");
 const APP_SHELL = [
   SHELL_URL,
   scopedUrl("manifest.webmanifest"),
-  scopedUrl("pwa.js?v=35"),
-  scopedUrl("playstudy/styles.css?v=35"),
-  scopedUrl("playstudy/player-gestures.js?v=35"),
-  scopedUrl("playstudy/app.js?v=35"),
-  scopedUrl("playstudy/data-store.js?v=35"),
+  scopedUrl("pwa.js?v=36"),
+  scopedUrl("playstudy/styles.css?v=36"),
+  scopedUrl("playstudy/player-gestures.js?v=36"),
+  scopedUrl("playstudy/app.js?v=36"),
+  scopedUrl("playstudy/data-store.js?v=36"),
   scopedUrl("playstudy/icons/icon-192.png"),
   scopedUrl("playstudy/icons/icon-512.png"),
   scopedUrl("playstudy/icons/icon-maskable-512.png"),

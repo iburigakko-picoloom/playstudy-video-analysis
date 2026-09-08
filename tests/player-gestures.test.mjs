@@ -218,3 +218,8 @@ test('seek drag moves relative to the time at pointer down', () => {
     duration: 200,
   }), 0);
 });
+test('precision drag uses thirty seconds across the track without changing taps',()=>{
+ assert.equal(calculateSeekTime({mode:'drag',startTime:1800,startX:100,currentX:150,trackWidth:300,duration:7200,dragSpan:30}),1805);
+ assert.equal(calculateSeekTime({mode:'tap',currentX:150,trackLeft:0,trackWidth:300,duration:7200,dragSpan:30}),3600);
+ assert.equal(calculateSeekTime({mode:'drag',startTime:5,startX:100,currentX:400,trackWidth:300,duration:10,dragSpan:30}),10);
+});
