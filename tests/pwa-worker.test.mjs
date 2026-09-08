@@ -5,6 +5,12 @@ import vm from "node:vm";
 
 const workerSource = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 
+class FollowedRedirectResponse extends Response {
+  get redirected() { return true; }
+  get url() { return 'https://example.test/app/playstudy/'; }
+  clone() { return new FollowedRedirectResponse(super.clone().body, {status:this.status,headers:this.headers}); }
+}
+
 function loadWorker({ scope = "https://example.test/app/", fetchImpl, stores = new Map() } = {}) {
   const listeners = new Map();
   const fetches = [];
@@ -33,7 +39,7 @@ function loadWorker({ scope = "https://example.test/app/", fetchImpl, stores = n
     async delete(name) { return stores.delete(name); },
   };
   const context = vm.createContext({
-    URL, Request, Response, Error, AbortController,
+    URL, Request, Response, Headers, Error, AbortController,
     setTimeout: (fn, delay) => setTimeout(fn, Math.min(delay, 30)), clearTimeout,
     fetch: fetcher, caches: cacheStorage,
     self: {
@@ -55,10 +61,12 @@ function loadWorker({ scope = "https://example.test/app/", fetchImpl, stores = n
     async navigate(path = "") {
       let promise;
       listeners.get("fetch")({
-        request: { method: "GET", mode: "navigate", url: new URL(path, scope).href },
+        request: { method: "GET", mode: "navigate", redirect: "manual", url: new URL(path, scope).href },
         respondWith(value) { promise = value; },
       });
-      return promise;
+      const response = await promise;
+      if (response?.redirected) throw new Error('Redirected response cannot serve a manual navigation');
+      return response;
     },
   };
 }
@@ -70,6 +78,21 @@ test("installs the entire app without duplicate cache requests", async () => {
   assert.equal(new Set(worker.fetches).size, worker.fetches.length);
   assert(worker.fetches.some((url) => url.endsWith("/playstudy/index.html")));
   assert(worker.fetches.some((url) => url.includes("/playstudy/app.js?")));
+});
+
+test('redirected cached shell is usable for manual-mode installed navigation',async()=>{
+ let offline=false;
+ const worker=loadWorker({fetchImpl:async()=>{if(offline)throw Error('offline');return new FollowedRedirectResponse('<html>PlayStudy</html>',{headers:{'content-type':'text/html','content-encoding':'gzip'}})}});
+ await worker.lifecycle('install');offline=true;worker.fetches.length=0;
+ for(const path of ['', 'playstudy/index.html', 'launch/']){
+  const response=await worker.navigate(path);assert.equal(response.redirected,false);assert.equal(response.headers.get('content-type'),'text/html');assert.equal(response.headers.get('content-encoding'),null);assert.equal(await response.text(),'<html>PlayStudy</html>');
+ }
+ assert.equal(worker.fetches.length,0);
+});
+
+test('uncached redirected shell is normalized as well',async()=>{
+ const worker=loadWorker({fetchImpl:async()=>new FollowedRedirectResponse('online shell')});
+ const response=await worker.navigate();assert.equal(response.redirected,false);assert.equal(await response.text(),'online shell');
 });
 
 test("failed app asset keeps the new worker from activating", async () => {
