@@ -646,6 +646,28 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
 
 /* Pinch zoom stays inside the video instead of zooming the whole page. */
 .focus-stage{touch-action:none!important}
+
+/* Library and memo controls: compact, without reducing touch targets. */
+.focus-video-entry{position:relative}
+.focus-video-entry .focus-video-card{padding-right:48px}
+.video-more{position:absolute;right:0;top:10px;min-width:44px;min-height:44px;border:0;border-radius:8px;background:transparent;color:inherit;font-size:24px}
+.library-find{display:flex;align-items:center;gap:8px;padding:0 20px 14px;flex-wrap:wrap}
+.library-find input{flex:1 1 180px;min-width:100px}
+.library-find input,.library-find select,.library-find button{min-height:44px;border:1px solid var(--line,#dce1e8);border-radius:8px;padding:8px 10px;background:var(--surface,#fff);color:inherit;font:inherit;font-size:14px}
+.undo-button{margin-left:14px;min-height:44px;border:0;border-radius:6px;background:white;color:#245ccd;font:inherit;padding:6px 12px}
+#note-edit-error{color:#c33939}
+#note-dialog .tag-checks label{min-height:44px;display:inline-flex;align-items:center;gap:6px;font-size:14px}
+#focus-speed{min-height:44px;border:0;border-radius:8px;background:#222;color:white;font:inherit;font-size:15px;padding:6px 12px}
+#focus-reset-zoom{font-size:14px;min-height:44px}
+.research-page .theme-tabs .chip,.research-page .scene-card .mini-actions button,.research-page .scene-card .research-link{min-height:44px;font-size:14px}
+.research-page .scene-card h5{font-size:15px}
+.research-page .scene-card p,.research-page .lane-head{font-size:14px}
+@media (orientation:portrait){
+ .research-page .board.research-board{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;overflow:visible}
+ .research-page .board .lane{min-width:0}
+ .research-page .unsorted-row{display:grid;grid-template-columns:minmax(0,1fr)}
+ .library-find{padding-inline:16px}
+}
 .focus-stage.is-zoomed{cursor:grab}
 .focus-stage.is-zoomed:active{cursor:grabbing}
 .focus-zoom-level{position:absolute;left:50%;top:50%;z-index:58;min-width:54px;padding:9px 12px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:15px;font-weight:800;text-align:center;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.92);transition:opacity .14s,transform .14s}
@@ -698,4 +720,14 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
  .research-page .research-board{grid-template-columns:repeat(4,minmax(132px,1fr));overflow-x:auto}
  .research-insight-grid,.research-form-grid{grid-template-columns:1fr}
  .research-insight-grid section{padding:8px 10px}
+}
+
+/* Touch-friendly research controls take precedence over compact desktop rules. */
+.research-page .theme-tabs .chip,.research-page .scene-card .mini-actions button,.research-page .scene-card .research-link{min-height:44px;font-size:14px}
+.research-page .scene-card h5{font-size:15px}
+.research-page .scene-card p,.research-page .lane-head{font-size:14px}
+@media(orientation:portrait){
+ .research-page .board.research-board{grid-template-columns:minmax(0,1fr);min-width:0;overflow:visible}
+ .research-page .board .lane{min-width:0}
+ .research-page .unsorted-row{display:grid;grid-template-columns:minmax(0,1fr)}
 }

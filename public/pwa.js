@@ -81,7 +81,7 @@ document.documentElement.setAttribute("data-pwa-boot", "started");
       await register();
       if (!registration) throw new Error("起動準備ができません。Chromeで開いて通信を確認してください。");
       await registration.update();
-      const cacheName = `playstudy-shell-${encodeURIComponent(rootUrl.pathname)}-v34`;
+      const cacheName = `playstudy-shell-${encodeURIComponent(rootUrl.pathname)}-v35`;
       const shellUrl = new URL("playstudy/index.html", rootUrl).href;
       const deadline = Date.now() + 20000;
       while (Date.now() < deadline) {
