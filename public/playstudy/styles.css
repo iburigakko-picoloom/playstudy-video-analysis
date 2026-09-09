@@ -381,7 +381,7 @@ body.player-active .focus-player{
 .focus-hud::before,.focus-hud::after{position:absolute;right:0;left:0;content:'';pointer-events:none}
 .focus-hud::before{top:0;height:92px;background:linear-gradient(rgba(0,0,0,.72),transparent)}
 .focus-hud::after{bottom:0;height:148px;background:linear-gradient(transparent,rgba(0,0,0,.82))}
-.focus-hud button,.focus-hud input{pointer-events:auto}
+.focus-hud button,.focus-hud input,.focus-hud select{pointer-events:auto}
 .focus-top-controls{
  position:absolute;
  top:0;
