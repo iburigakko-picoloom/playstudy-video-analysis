@@ -234,5 +234,26 @@
     return Math.min(duration, Math.max(0, time));
   }
 
-  return Object.freeze({ createTapSequence, calculateSeekTime });
+  function createHoldBoost({getRate,setRate,schedule=setTimeout,cancel=clearTimeout,onBoost=()=>{},onRelease=()=>{}}){
+    let pointer=null,timer=null,active=false,baseRate=null,generation=0,startX=0,startY=0;
+    function stop(){
+      generation++;if(timer!==null)cancel(timer);timer=null;pointer=null;
+      const restore=active,rate=baseRate;active=false;baseRate=null;
+      if(restore){setRate(rate);onRelease()}
+    }
+    return {
+      get active(){return active},
+      get savedRate(){return active?baseRate:getRate()},
+      start(event){
+        stop();
+        if(event.isPrimary===false||(event.button!=null&&event.button!==0))return;
+        pointer=event.pointerId;startX=event.clientX;startY=event.clientY;baseRate=getRate();const token=generation;
+        timer=schedule(()=>{if(token!==generation||pointer===null)return;timer=null;active=true;setRate(2);onBoost()},520);
+      },
+      end(event){if(!event||event.pointerId===pointer)stop()},
+      move(event){if(event.pointerId!==pointer)return;if(event.buttons===0||Math.hypot(event.clientX-startX,event.clientY-startY)>10)stop()},
+      stop
+    };
+  }
+  return Object.freeze({ createTapSequence, calculateSeekTime, createHoldBoost });
 });

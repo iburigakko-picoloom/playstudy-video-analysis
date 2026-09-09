@@ -50,7 +50,7 @@ test('all entry points load storage before the app and offline shell includes st
  for(const file of ['public/playstudy/index.html','public/launch/index.html','app/page.tsx']){
   const text=fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.ok(text.indexOf('data-store.js')<text.indexOf('app.js'));
  }
- assert.match(fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),/playstudy\/data-store.js\?v=37/);
+ assert.match(fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),/playstudy\/data-store.js\?v=38/);
  new vm.Script(fs.readFileSync(new URL('../public/playstudy/app.js',import.meta.url),'utf8'));
 });
 test('draft keeps its original timestamp after closing the memo sheet',()=>{

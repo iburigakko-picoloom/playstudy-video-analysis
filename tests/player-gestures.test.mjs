@@ -5,6 +5,28 @@ await import('../public/playstudy/player-gestures.js');
 
 const { createTapSequence, calculateSeekTime } = globalThis.PlayStudyGestures;
 
+function boostFixture(initial=1){
+ let rate=initial;const timers=[];
+ const boost=globalThis.PlayStudyGestures.createHoldBoost({getRate:()=>rate,setRate:value=>rate=value,schedule:fn=>{timers.push(fn);return timers.length},cancel:()=>{}});
+ return {boost,timers,get rate(){return rate},set rate(value){rate=value},down:(id=1)=>boost.start({pointerId:id,clientX:10,clientY:10,isPrimary:true,button:0})};
+}
+test('temporary boost restores the selected rate and never exposes 2x as saved speed',()=>{
+ const f=boostFixture(.5);f.down();f.timers[0]();assert.equal(f.rate,2);assert.equal(f.boost.savedRate,.5);f.boost.end({pointerId:1});assert.equal(f.rate,.5);f.boost.stop();assert.equal(f.rate,.5);
+});
+test('repeated pointer downs cannot leave an old hold timer running',()=>{
+ const f=boostFixture();f.down();f.down();f.timers[0]();assert.equal(f.rate,1);f.boost.end({pointerId:1});f.timers[1]();assert.equal(f.rate,1);
+});
+test('a new gesture restores the base rate before another hold starts',()=>{
+ const f=boostFixture();f.down();f.timers[0]();f.down(2);assert.equal(f.rate,1);f.timers[1]();f.boost.stop();assert.equal(f.rate,1);
+});
+test('movement, lost mouse buttons and lifecycle cancellation stop the boost',()=>{
+ for(const event of [{pointerId:1,clientX:30,clientY:10,buttons:1},{pointerId:1,clientX:10,clientY:10,buttons:0}]){const f=boostFixture();f.down();f.timers[0]();f.boost.move(event);assert.equal(f.rate,1)}
+ const f=boostFixture();f.down();f.timers[0]();f.boost.stop();f.rate=.75;f.boost.end({pointerId:1});assert.equal(f.rate,.75);
+});
+test('a secondary touch cancels boost without starting another timer',()=>{
+ const f=boostFixture();f.down();f.timers[0]();f.boost.start({pointerId:2,isPrimary:false});assert.equal(f.rate,1);assert.equal(f.timers.length,1);
+});
+
 function tap(machine, state, direction, at) {
   return machine.transition(state, { type: 'tap', direction, at });
 }
