@@ -272,5 +272,9 @@
       get preview(){return preview}
     };
   }
-  return Object.freeze({ createTapSequence, calculateSeekTime, createHoldBoost, createSeekGesture });
+  function preventVideoContextMenu(event){
+    const target=event.target;
+    if(target?.closest?.('video,.focus-stage,.research-clip-media')&&!target.closest('input,textarea,select'))event.preventDefault();
+  }
+  return Object.freeze({ createTapSequence, calculateSeekTime, createHoldBoost, createSeekGesture, preventVideoContextMenu });
 });

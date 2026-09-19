@@ -651,6 +651,7 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
 
 /* Pinch zoom stays inside the video instead of zooming the whole page. */
 .focus-stage{touch-action:none!important}
+.focus-stage,.focus-stage *,.research-clip-media,.research-clip-media *,video{-webkit-touch-callout:none}
 
 /* Library and memo controls: compact, without reducing touch targets. */
 .focus-video-entry{position:relative}

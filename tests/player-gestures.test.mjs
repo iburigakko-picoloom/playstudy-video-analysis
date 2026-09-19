@@ -4,6 +4,13 @@ import test from 'node:test';
 await import('../public/playstudy/player-gestures.js');
 
 const { createTapSequence, calculateSeekTime } = globalThis.PlayStudyGestures;
+test('video long-press menu is prevented without blocking memo editing menus',()=>{
+ for(const [media,editable,expected] of [[true,false,true],[true,true,false],[false,true,false],[false,false,false]]){
+  let prevented=false;
+  globalThis.PlayStudyGestures.preventVideoContextMenu({target:{closest:s=>s==='video,.focus-stage,.research-clip-media'?media:editable},preventDefault(){prevented=true}});
+  assert.equal(prevented,expected);
+ }
+});
 
 function seekFixture(){const gesture=globalThis.PlayStudyGestures.createSeekGesture();gesture.begin({at:100,startTime:40,startX:150,trackLeft:100,trackWidth:200,duration:100});return gesture}
 test('short seek tap commits absolute position only on release',()=>{const g=seekFixture();assert.equal(g.preview,null);assert.equal(g.end(150,449),25)});
