@@ -58,6 +58,7 @@
         if(item.start!=null&&item.end!=null&&item.end<item.start)throw new Error('区間の終了時刻が正しくありません');
       }
     }
+    for(const card of data.researchCards)if(card.type==='clip')validateResearchClip(card,data,{allowMissing:true});
     const files=payload.videoFiles??{};
     if(!object(files))throw new Error('動画ファイルの形式が正しくありません');
     for(const [id,file] of Object.entries(files)){
@@ -69,10 +70,10 @@
     data.videos.forEach(item=>{if(item.id===oldId)item.id=newId});
     for(const key of ['notes','scenes','tagEvents','drawings'])data[key].forEach(item=>{if(item.videoId===oldId)item.videoId=newId});
     data.comparisons.forEach(item=>{for(const key of ['leftId','rightId','leftVideoId','rightVideoId'])if(item[key]===oldId)item[key]=newId});
-    data.researchCards.forEach(item=>{if(item.type==='video'&&item.refId===oldId)item.refId=newId});
+    data.researchCards.forEach(item=>{if(item.type==='video'&&item.refId===oldId)item.refId=newId;if(item.videoId===oldId)item.videoId=newId});
   }
   function linkedThemeIds(cards,noteId){
-    return [...new Set(cards.filter(card=>card.type==='note'&&card.refId===noteId).map(card=>card.themeId))];
+    return [...new Set(cards.filter(card=>(card.type==='note'&&card.refId===noteId)||(card.type==='clip'&&card.memoId===noteId)).map(card=>card.researchId||card.themeId))];
   }
   function updateNote(note,{text,time,end,tagIds}){
     if(!text.trim())throw new Error('メモを入力してください');
@@ -102,5 +103,55 @@
     }
     append('}}');check();return {blob:new Blob(parts,{type:'application/json'}),completed,bytes};
   }
-  return {createStore,validateBackup,remapVideo,linkedThemeIds,updateNote,buildBackup};
+  function defaultClipRange(note,video){
+    const duration=Number.isFinite(video?.durationSeconds)&&video.durationSeconds>0?video.durationSeconds:Infinity;
+    const anchor=Math.max(0,note?.time??note?.start??0);
+    const startTime=Math.min(Math.max(0,anchor-3),Math.max(0,duration-1));
+    const endTime=Math.min(duration,note?.type==='range'?Math.max(startTime+0.1,note.end):anchor+5);
+    return {startTime,endTime:Math.max(startTime+0.01,endTime)};
+  }
+  function validateResearchClip(clip,data,{allowMissing=false}={}){
+    if(!data.themes.some(t=>t.id===clip.researchId))throw new Error('研究課題を選択してください');
+    const video=data.videos.find(v=>v.id===clip.videoId),memo=data.notes.find(n=>n.id===clip.memoId);
+    if(!allowMissing&&(!video||!memo||memo.videoId!==video.id))throw new Error('動画と、その動画のメモを選択してください');
+    if(memo&&memo.videoId!==clip.videoId)throw new Error('元メモと動画が一致しません');
+    if(!Number.isFinite(clip.startTime)||!Number.isFinite(clip.endTime)||clip.startTime<0||clip.endTime<=clip.startTime)throw new Error('終了位置は開始位置より後にしてください');
+    if(video?.durationSeconds>0&&clip.endTime>video.durationSeconds+0.01)throw new Error('動画の長さ以内で範囲を指定してください');
+    if(typeof clip.clipNote!=='string')throw new Error('クリップのメモが正しくありません');
+    return clip;
+  }
+  function migrateResearch(data){
+    const themes=clone(data.themes),cards=clone(data.researchCards);
+    for(const theme of themes){
+      if(theme.researchVersion===2)continue;
+      const parts=[theme.summary||''];
+      for(const [key,label] of [['question','調べたいこと'],['hypothesis','以前の仮説'],['conclusion','以前の結論'],['nextAction','次に試すこと']])if(theme[key])parts.push(label+'\n'+theme[key]);
+      for(const card of cards.filter(c=>c.themeId===theme.id)){
+        if(card.type==='clip')continue;
+        const note=card.type==='note'?data.notes.find(n=>n.id===card.refId):null;
+        const scene=card.type==='scene'?data.scenes.find(s=>s.id===card.refId):null;
+        const video=data.videos.find(v=>v.id===(note?.videoId||scene?.videoId||(card.type==='video'?card.refId:'')));
+        if(video){
+          const range=scene?{startTime:scene.start,endTime:scene.end}:defaultClipRange(note,video);
+          const duration=video.durationSeconds>0?video.durationSeconds:Infinity;
+          range.startTime=Math.min(Math.max(0,Number.isFinite(range.startTime)?range.startTime:0),Math.max(0,duration-0.01));
+          range.endTime=Math.min(duration,Number.isFinite(range.endTime)&&range.endTime>range.startTime?range.endTime:range.startTime+5);
+          Object.assign(card,{legacyType:card.type,type:'clip',researchId:theme.id,videoId:video.id,memoId:note?.id||null,...range,clipNote:card.text||''});
+        }else{
+          const comparison=card.type==='comparison'?data.comparisons.find(c=>c.id===card.refId):null;
+          parts.push(['以前の記録',card.text,card.url,comparison?.title,card.type==='image'?'画像（旧データに保持）':'',card.refId?('参照: '+card.refId):''].filter(Boolean).join('\n'));
+        }
+      }
+      theme.summary=parts.filter(Boolean).join('\n\n');theme.researchVersion=2;
+    }
+    return {themes,researchCards:cards};
+  }
+  function researchText(theme,cards,data,formatTime){
+    const memoText=n=>n?[n.title,n.body].filter(Boolean).join('\n'):'元メモなし';
+    return [theme.title,...cards.filter(c=>c.type==='clip'&&(c.researchId||c.themeId)===theme.id).map((c,i)=>{
+      const v=data.videos.find(v=>v.id===c.videoId),n=data.notes.find(n=>n.id===c.memoId);
+      return `${i+1}. 元動画: ${v?.title||'元動画なし'}\n時間範囲: ${formatTime(c.startTime)} – ${formatTime(c.endTime)}\n元メモ: ${memoText(n)}\nこの動画で分かること: ${c.clipNote||'未入力'}`;
+    }),'研究まとめ\n'+(theme.summary||'未入力')].join('\n\n');
+  }
+  return {createStore,validateBackup,remapVideo,linkedThemeIds,updateNote,buildBackup,defaultClipRange,validateResearchClip,migrateResearch,researchText};
 });

@@ -5,6 +5,13 @@ await import('../public/playstudy/player-gestures.js');
 
 const { createTapSequence, calculateSeekTime } = globalThis.PlayStudyGestures;
 
+function seekFixture(){const gesture=globalThis.PlayStudyGestures.createSeekGesture();gesture.begin({at:100,startTime:40,startX:150,trackLeft:100,trackWidth:200,duration:100});return gesture}
+test('short seek tap commits absolute position only on release',()=>{const g=seekFixture();assert.equal(g.preview,null);assert.equal(g.end(150,449),25)});
+test('350ms stationary hold and small jitter never seek',()=>{for(const at of [450,900,5000]){const g=seekFixture();assert.equal(g.move(155),null);assert.equal(g.end(155,at),null)}});
+test('seek drag previews relative time and commits the release position',()=>{const g=seekFixture();assert.equal(g.move(170),50);assert.equal(g.move(190),60);assert.equal(g.end(210,900),70);assert.equal(g.preview,null)});
+test('seek cancel and a hold returning to its origin do not commit',()=>{let g=seekFixture();g.move(210);assert.equal(g.end(210,900,true),null);g=seekFixture();g.move(210);assert.equal(g.end(153,900),null);g=seekFixture();g.cancel();assert.equal(g.end(210,900),null)});
+test('seek clamps both boundaries and precision keeps the same no-op hold',()=>{let g=seekFixture();assert.equal(g.end(900,900),100);g=seekFixture();assert.equal(g.end(-100,900),0);g.begin({at:0,startTime:40,startX:0,trackWidth:200,duration:100,dragSpan:30});assert.equal(g.move(100),55);assert.equal(g.end(100,500),55)});
+
 function boostFixture(initial=1){
  let rate=initial;const timers=[];
  const boost=globalThis.PlayStudyGestures.createHoldBoost({getRate:()=>rate,setRate:value=>rate=value,schedule:fn=>{timers.push(fn);return timers.length},cancel:()=>{}});

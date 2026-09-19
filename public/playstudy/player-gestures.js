@@ -255,5 +255,22 @@
       stop
     };
   }
-  return Object.freeze({ createTapSequence, calculateSeekTime, createHoldBoost });
+  // The media time is committed only on release. A stationary hold is a no-op.
+  function createSeekGesture({holdMs=350,threshold=8}={}){
+    let start=null,preview=null;
+    const target=x=>calculateSeekTime({...start,mode:'drag',currentX:x});
+    return {
+      begin(values){start={...values};preview=null},
+      move(x){if(!start)return null;if(Math.abs(x-start.startX)<threshold)return preview=null;return preview=target(x)},
+      end(x,at,cancelled=false){
+        if(!start)return null;
+        const moved=Math.abs(x-start.startX)>=threshold;
+        const value=cancelled?null:moved?target(x):at-start.at>=holdMs?null:calculateSeekTime({...start,mode:'tap',currentX:x});
+        start=null;preview=null;return value;
+      },
+      cancel(){start=null;preview=null},
+      get preview(){return preview}
+    };
+  }
+  return Object.freeze({ createTapSequence, calculateSeekTime, createHoldBoost, createSeekGesture });
 });

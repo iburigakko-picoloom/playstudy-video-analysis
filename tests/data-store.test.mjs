@@ -50,7 +50,7 @@ test('all entry points load storage before the app and offline shell includes st
  for(const file of ['public/playstudy/index.html','public/launch/index.html','app/page.tsx']){
   const text=fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.ok(text.indexOf('data-store.js')<text.indexOf('app.js'));
  }
- assert.match(fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),/playstudy\/data-store.js\?v=39/);
+ assert.match(fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),/playstudy\/data-store.js\?v=40/);
  new vm.Script(fs.readFileSync(new URL('../public/playstudy/app.js',import.meta.url),'utf8'));
 });
 test('draft keeps its original timestamp after closing the memo sheet',()=>{
@@ -86,13 +86,31 @@ test('backup validation rejects executable links and unsafe thumbnail attributes
  assert.throws(()=>api.validateBackup({version:3,data:{...defaults,researchCards:[{id:'r1',type:'link',url:'javascript:alert(1)'}]}},defaults));
  assert.throws(()=>api.validateBackup({version:3,data:{...defaults,videos:[{id:'v1',poster:'x" onerror="alert(1)'}]}},defaults));
 });
-test('active research filter handlers select the lane and render without element-list errors',()=>{
- const source=fs.readFileSync(new URL('../public/playstudy/app.js',import.meta.url),'utf8');
- const line=source.split('\n').filter(line=>line.startsWith('bindResearch=function(){')).at(-1);
- const button={dataset:{researchFilter:'参考'}},state={};let renders=0;
- const noop=()=>{};
- const sandbox=vm.createContext({state,$:()=>null,$$:selector=>selector==='[data-research-filter]'?[button]:[],render:()=>renders++,bindThemeDialog:noop,bindLaneDialog:noop,bindResearchAdd:noop,bindResearchDrag:noop});
- vm.runInContext(line,sandbox);sandbox.bindResearch();button.onclick();assert.equal(state.researchLane,'参考');assert.equal(renders,1);
+test('research migration preserves old content and is idempotent',()=>{
+ const data={...defaults,videos:[{id:'v',title:'Video',durationSeconds:30}],notes:[{id:'n',videoId:'v',time:10,title:'Memo'}],themes:[{id:'t',title:'Task',hypothesis:'Old idea',conclusion:'Finding',relatedTagIds:['tag']}],researchCards:[{id:'r',type:'note',themeId:'t',refId:'n',text:'Insight'},{id:'x',type:'text',themeId:'t',text:'Keep me'}]};
+ const migrated=api.migrateResearch(data);
+ assert.equal(migrated.researchCards[0].type,'clip');assert.equal(migrated.researchCards[0].videoId,'v');assert.equal(migrated.researchCards[0].memoId,'n');
+ assert.equal(migrated.researchCards[0].startTime,7);assert.equal(migrated.researchCards[0].endTime,15);
+ assert.match(migrated.themes[0].summary,/Old idea/);assert.match(migrated.themes[0].summary,/Finding/);assert.match(migrated.themes[0].summary,/Keep me/);
+ assert.equal(migrated.themes[0].hypothesis,'Old idea');assert.equal(migrated.researchCards[1].text,'Keep me');assert.equal(data.researchCards[0].type,'note');
+ assert.deepEqual(plain(api.migrateResearch({...data,...migrated})),plain(migrated));
+});
+test('reference clips validate ranges and memo ownership and survive backup remapping',()=>{
+ const data={...defaults,videos:[{id:'v',durationSeconds:30}],notes:[{id:'n',videoId:'v',time:10}],themes:[{id:'t'}],researchCards:[{id:'r',type:'clip',researchId:'t',themeId:'t',videoId:'v',memoId:'n',startTime:7,endTime:15,clipNote:'Insight'}]};
+ const clip=data.researchCards[0];api.validateResearchClip(clip,data);
+ for(const bad of [{endTime:7},{startTime:-1},{endTime:31},{endTime:NaN},{memoId:'missing'},{researchId:'missing'}])assert.throws(()=>api.validateResearchClip({...clip,...bad},data));
+ assert.throws(()=>api.validateResearchClip(clip,{...data,notes:[{id:'n',videoId:'other'}]},{allowMissing:true}));
+ const restored=api.validateBackup({version:3,data},defaults).data;api.remapVideo(restored,'v','v2');
+ assert.equal(restored.researchCards[0].videoId,'v2');assert.equal(restored.notes[0].videoId,'v2');
+ assert.deepEqual(plain(api.linkedThemeIds([clip,{...clip,id:'r2'}],'n')),['t']);
+ // Deleting a source memo does not silently destroy the clip or break backup import.
+ assert.doesNotThrow(()=>api.validateBackup({version:3,data:{...data,notes:[]}},defaults));
+});
+test('research text export contains every requested field without binary video data',()=>{
+ const t={id:'t',title:'Contact point',summary:'Try this'},data={videos:[{id:'v',title:'Practice'}],notes:[{id:'n',title:'High',body:'Keep elbow up'}]};
+ const text=api.researchText(t,[{type:'clip',researchId:'t',videoId:'v',memoId:'n',startTime:2,endTime:8,clipNote:'Earlier contact'}],data,String);
+ for(const field of ['Contact point','Practice','2 – 8','High','Keep elbow up','Earlier contact','Try this'])assert.ok(text.includes(field));
+ assert.doesNotMatch(text,/blob:|base64/);
 });
 test('renaming two research lanes swaps their cards without merging references',()=>{
  const source=fs.readFileSync(new URL('../public/playstudy/app.js',import.meta.url),'utf8');
@@ -104,12 +122,4 @@ test('renaming two research lanes swaps their cards without merging references',
  vm.runInContext(fn,sandbox);sandbox.bindLaneDialog();nodes['#lane-save'].onclick();
  assert.deepEqual(state.researchCards.map(c=>c.lane),['B','A']);assert.equal(writes,1);
  inputs[0].value='same';inputs[1].value='same';nodes['#lane-save'].onclick();assert.equal(writes,1);
-});
-test('research renders a filtered single list and can render the empty state',()=>{
- const source=fs.readFileSync(new URL('../public/playstudy/app.js',import.meta.url),'utf8');
- const start=source.lastIndexOf('research=function(){'),end=source.indexOf('bindThemeDialog=function(){',start);
- const item={id:'t',title:'Research',lanes:['未整理','参考']},state={activeTheme:'t',researchLane:'参考',themes:[item],researchCards:[{id:'a',themeId:'t',lane:'参考'},{id:'b',themeId:'t',lane:'未整理'}]};
- const empty=()=>'',sandbox=vm.createContext({state,theme:()=>item,researchEmpty:()=>'<empty>',researchStats:()=>({videoCount:0,sceneCount:0,tags:[]}),esc:String,topbar:empty,nav:empty,themeDialog:empty,laneDialog:empty,researchAddDialog:empty,researchCardHtml:card=>'<card>'+card.id+'</card>'});
- vm.runInContext(source.slice(start,end),sandbox);const html=sandbox.research();assert.match(html,/<card>a<\/card>/);assert.doesNotMatch(html,/<card>b<\/card>/);
- sandbox.theme=()=>null;state.themes=[];assert.equal(sandbox.research(),'<empty>');
 });
