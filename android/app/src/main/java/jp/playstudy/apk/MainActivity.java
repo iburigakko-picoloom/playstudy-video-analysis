@@ -6,10 +6,13 @@ import android.content.pm.ActivityInfo;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.Configuration;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -25,12 +28,15 @@ import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,6 +50,7 @@ public final class MainActivity extends Activity {
     private WebViewAssetLoader assetLoader;
     private ValueCallback<Uri[]> webFileCallback;
     private String pendingRelinkId = "";
+    private final ExecutorService metadataExecutor = Executors.newSingleThreadExecutor();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -59,12 +66,15 @@ public final class MainActivity extends Activity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setDatabaseEnabled(true);
         webView.getSettings().setAllowFileAccess(false);
-        webView.getSettings().setAllowContentAccess(false);
+        // Only previously selected content URIs are allowed by shouldInterceptRequest.
+        webView.getSettings().setAllowContentAccess(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new NativeBridge(), "PlayStudyNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri url = request.getUrl();
+                if ("content".equals(url.getScheme())
+                        && getPreferences(MODE_PRIVATE).getAll().containsValue(url.toString())) return null;
                 if (!"https".equals(url.getScheme()) || !HOST.equals(url.getHost())) {
                     if ("blob".equals(url.getScheme()) || "data".equals(url.getScheme())) return null;
                     return errorResponse(403);
@@ -118,6 +128,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        metadataExecutor.shutdownNow();
         webView.removeJavascriptInterface("PlayStudyNative");
         webView.destroy();
         super.onDestroy();
@@ -139,6 +150,11 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface public String mediaUrl(String id) {
             return ORIGIN + "/native-media/" + Uri.encode(id);
+        }
+
+        @JavascriptInterface public String contentUrl(String id) {
+            String uri = getPreferences(MODE_PRIVATE).getString("media:" + id, null);
+            return uri == null ? "" : uri;
         }
 
         @JavascriptInterface public void setPlayerOrientation(boolean player) {
@@ -182,10 +198,57 @@ public final class MainActivity extends Activity {
             addPickedVideo(items, data.getData(), relinkId);
         }
         if (items.length() > 0) {
-            webView.evaluateJavascript("window.playStudyNativeFilesSelected(" + items + "," + JSONObject.quote(relinkId) + ")", null);
+            webView.evaluateJavascript("window.playStudyNativeFilesSelected(" + items + "," + JSONObject.quote(relinkId) + ")", result -> {
+                for (int index = 0; index < items.length(); index++) {
+                    JSONObject item = items.optJSONObject(index);
+                    if (item == null) continue;
+                    String id = item.optString("id");
+                    String uri = getPreferences(MODE_PRIVATE).getString("media:" + id, null);
+                    if (uri != null) metadataExecutor.execute(() -> loadVideoMetadata(id, Uri.parse(uri)));
+                }
+            });
         } else {
             webView.evaluateJavascript("toast('動画を参照できません。ファイルアプリから選んでください')", null);
         }
+    }
+
+    private void loadVideoMetadata(String id, Uri uri) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        JSONObject result = new JSONObject();
+        try {
+            result.put("id", id);
+            retriever.setDataSource(this, uri);
+            String duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            if (duration != null) result.put("durationSeconds", Long.parseLong(duration) / 1000.0);
+            Bitmap frame;
+            if (android.os.Build.VERSION.SDK_INT >= 27) {
+                int width = 480;
+                String w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+                String h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+                int height = 270;
+                if (w != null && h != null && Integer.parseInt(w) > 0) {
+                    height = Math.max(1, Math.round(480f * Integer.parseInt(h) / Integer.parseInt(w)));
+                }
+                frame = retriever.getScaledFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, width, height);
+            } else {
+                frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            }
+            if (frame != null) {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                frame.compress(Bitmap.CompressFormat.JPEG, 70, output);
+                frame.recycle();
+                result.put("poster", "data:image/jpeg;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP));
+            }
+        } catch (Exception error) {
+            android.util.Log.w("PlayStudy", "Could not read video metadata", error);
+        } finally {
+            try { retriever.release(); } catch (Exception ignored) { }
+        }
+        runOnUiThread(() -> {
+            if (!isFinishing() && !isDestroyed()) {
+                webView.evaluateJavascript("window.playStudyNativeMetadata?.(" + result + ")", null);
+            }
+        });
     }
 
     private void addPickedVideo(JSONArray items, Uri uri, String relinkId) {

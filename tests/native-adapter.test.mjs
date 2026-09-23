@@ -15,13 +15,14 @@ function boot() {
   const native = {
     pickVideos: id => picks.push(id),
     setPlayerOrientation: () => {},
+    contentUrl: id => `content://selected/${id}`,
     hasMedia: () => true,
     mediaUrl: id => `https://appassets.androidplatform.net/native-media/${id}`
   };
-  const document = { addEventListener(_type, callback) { this.click = callback; } };
+  const document = { addEventListener(_type, callback) { this.click = callback; }, querySelector: () => null };
   const context = {
     window: { PlayStudyNative: native }, document, STORED_VIDEO_MODES: new Set(['opfs']),
-    state, hydrateVideo: async video => video, relinkFile: async () => {},
+    state, hydrateVideo: async video => video, relinkFile: async () => {}, bindFocusPlayer: () => {},
     activeV: () => state.videos[0], video: id => state.videos.find(v => v.id === id),
     probeVideo: async () => ({ duration: 12.5 }), captureFirstFrame: async () => 'data:image/jpeg;base64,AA',
     fmt: n => String(n), project: () => ({ sportName: '' }),
@@ -37,9 +38,12 @@ test('APK imports a reference without copying the video into browser storage', a
   await app.context.window.playStudyNativeFilesSelected([{ id: 'v1', name: 'clip.mp4', type: 'video/mp4' }], '');
   assert.equal(app.state.videos[0].storageMode, 'native-uri');
   assert.equal(app.state.videos[0].src, 'https://appassets.androidplatform.net/native-media/v1');
-  assert.equal(app.state.videos[0].poster, 'data:image/jpeg;base64,AA');
+  assert.equal(app.state.videos[0].poster, '');
   assert.equal(app.writes(), 1);
   assert.equal(app.context.STORED_VIDEO_MODES.has('native-uri'), true);
+  app.context.window.playStudyNativeMetadata({ id: 'v1', durationSeconds: 12.5, poster: 'data:image/jpeg;base64,AA' });
+  assert.equal(app.state.videos[0].poster, 'data:image/jpeg;base64,AA');
+  assert.equal(app.state.videos[0].durationSeconds, 12.5);
 });
 
 test('APK relink keeps the same video ID, preserving memos and research links', async () => {
@@ -55,4 +59,12 @@ test('APK relink keeps the same video ID, preserving memos and research links', 
   };
   app.document.click(event);
   assert.deepEqual(app.picks, ['old']);
+});
+
+test('native selection completes without waiting for browser video metadata', () => {
+  const app = boot();
+  app.context.probeVideo = () => new Promise(() => {});
+  app.context.captureFirstFrame = () => new Promise(() => {});
+  app.context.window.playStudyNativeFilesSelected([{ id: 'instant', name: 'movie.mp4', type: 'video/mp4' }], '');
+  assert.equal(app.state.videos[0].id, 'instant');
 });
