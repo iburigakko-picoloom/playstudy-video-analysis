@@ -73,6 +73,7 @@ final class LocalMediaServer {
             client.setSoTimeout(10000);
             String first = readLine(input);
             if (first == null) return;
+            Log.d("PlayStudy", "Local media request " + first);
             String[] request = first.split(" ", 3);
             if (request.length < 2 || !("GET".equals(request[0]) || "HEAD".equals(request[0]))) {
                 sendError(output, 405, "Method Not Allowed"); return;

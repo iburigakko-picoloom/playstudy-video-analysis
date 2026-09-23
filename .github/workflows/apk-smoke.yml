@@ -41,8 +41,7 @@ jobs:
           target: google_apis
           arch: x86_64
           script: |
-            set +e
-            gradle -p android :app:connectedDebugAndroidTest --no-daemon
-            result=$?
-            adb logcat -d -s PlayStudy:D | tail -n 120 || true
+            result=0
+            gradle -p android :app:connectedDebugAndroidTest --no-daemon || result=$?
+            adb logcat -d -s PlayStudy:D | tail -n 160 || true
             exit "$result"

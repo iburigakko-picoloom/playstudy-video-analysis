@@ -16,6 +16,8 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +51,14 @@ public final class VideoSmokeTest {
         assertTrue("APK JavaScript bridge did not load", waitFor(web.get(),
                 "typeof window.playStudyNativeFilesSelected === 'function'", "true", 20000));
         evaluate(web.get(), "window.playStudyNativeFilesSelected([{id:'smoke',name:'sample.mp4',type:'video/mp4'}],'')");
+        String mediaUrl = evaluate(web.get(), "window.PlayStudyNative.mediaUrl('smoke')");
+        HttpURLConnection connection = (HttpURLConnection) new URL(mediaUrl.substring(1, mediaUrl.length() - 1)).openConnection();
+        connection.setRequestProperty("Range", "bytes=0-1023");
+        assertTrue("Local media server did not return a byte range: " + connection.getResponseCode(),
+                connection.getResponseCode() == 206);
+        try (InputStream media = connection.getInputStream()) {
+            assertTrue("Local media server returned no data", media.read() >= 0);
+        } finally { connection.disconnect(); }
         assertTrue("Selected video did not load metadata: " + evaluate(web.get(),
                         "JSON.stringify({screen:state.screen,error:document.querySelector('#main-video')?.error?.code||0,ready:document.querySelector('#main-video')?.readyState||0,network:document.querySelector('#main-video')?.networkState||0,src:document.querySelector('#main-video')?.currentSrc||'',missing:activeV()?.missingSource||false})"),
                 waitFor(web.get(), "document.querySelector('#main-video')?.readyState >= 1", "true", 30000));
