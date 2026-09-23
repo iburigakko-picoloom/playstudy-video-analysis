@@ -21,6 +21,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
+      - name: Install sample video generator
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
       - name: Prepare offline assets and sample video
         run: |
           node scripts/prepare-android-assets.mjs
