@@ -22,6 +22,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebResourceError;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import android.util.Log;
 
 import androidx.webkit.WebViewAssetLoader;
@@ -51,6 +52,7 @@ public final class MainActivity extends Activity {
     private static final Pattern RANGE = Pattern.compile("bytes=(\\d+)-(\\d*)");
     private WebView webView;
     private WebViewAssetLoader assetLoader;
+    private LocalMediaServer mediaServer;
     private ValueCallback<Uri[]> webFileCallback;
     private String pendingRelinkId = "";
     private final ExecutorService metadataExecutor = Executors.newSingleThreadExecutor();
@@ -63,6 +65,8 @@ public final class MainActivity extends Activity {
                 .setDomain(HOST)
                 .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
+        try { mediaServer = new LocalMediaServer(this); }
+        catch (IOException error) { Log.e("PlayStudy", "Could not start local media server", error); }
         webView = new WebView(this);
         webView.setBackgroundColor(Color.BLACK);
         webView.getSettings().setJavaScriptEnabled(true);
@@ -72,10 +76,13 @@ public final class MainActivity extends Activity {
         // Only previously selected content URIs are allowed by shouldInterceptRequest.
         webView.getSettings().setAllowContentAccess(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+        // The loopback media server is local to this device, but uses HTTP.
+        webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         webView.addJavascriptInterface(new NativeBridge(), "PlayStudyNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri url = request.getUrl();
+                if (mediaServer != null && mediaServer.accepts(url)) return null;
                 if ("content".equals(url.getScheme())
                         && getPreferences(MODE_PRIVATE).getAll().containsValue(url.toString())) return null;
                 if (!"https".equals(url.getScheme()) || !HOST.equals(url.getHost())) {
@@ -141,6 +148,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         metadataExecutor.shutdownNow();
+        if (mediaServer != null) mediaServer.close();
         webView.removeJavascriptInterface("PlayStudyNative");
         webView.destroy();
         super.onDestroy();
@@ -161,7 +169,7 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public String mediaUrl(String id) {
-            return ORIGIN + "/native-media/" + Uri.encode(id);
+            return mediaServer == null ? "" : mediaServer.urlFor(id);
         }
 
         @JavascriptInterface public String contentUrl(String id) {
