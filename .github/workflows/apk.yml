@@ -1,0 +1,50 @@
+name: Build PlayStudy APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'public/**'
+      - 'scripts/prepare-android-assets.mjs'
+      - '.github/workflows/apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Prepare bundled offline app
+        run: node scripts/prepare-android-assets.mjs
+      - name: Load update signing key
+        env:
+          APK_KEYSTORE_B64: ${{ secrets.PLAYSTUDY_KEYSTORE_BASE64 }}
+          APK_STORE_PASSWORD: ${{ secrets.PLAYSTUDY_STORE_PASSWORD }}
+        run: |
+          test -n "$APK_KEYSTORE_B64" || { echo 'Missing APK signing key'; exit 1; }
+          test -n "$APK_STORE_PASSWORD" || { echo 'Missing APK signing password'; exit 1; }
+          printf '%s' "$APK_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/playstudy.p12"
+          echo "PLAYSTUDY_KEYSTORE_PATH=$RUNNER_TEMP/playstudy.p12" >> "$GITHUB_ENV"
+      - name: Build signed APK
+        env:
+          PLAYSTUDY_STORE_PASSWORD: ${{ secrets.PLAYSTUDY_STORE_PASSWORD }}
+        run: gradle -p android :app:assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlayStudy-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

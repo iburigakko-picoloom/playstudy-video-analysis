@@ -41,3 +41,10 @@ yarn-error.log*
 /outputs/
 /work/
 /github-pages-dist/
+/android/app/build/
+/android/app/src/main/assets/
+/android/app/src/main/res/drawable/playstudy_icon.png
+/android/.gradle/
+/android/local.properties
+*.jks
+*.keystore

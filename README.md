@@ -22,3 +22,9 @@ npm run dev
 ## GitHub Pages
 
 `main` ブランチへのpushで `.github/workflows/pages.yml` が静的PWAを作成し、GitHub Pagesへ公開します。リポジトリ名を含むURLでもService WorkerとManifestのスコープが自動調整されます。
+
+## Android APK
+
+`android/` は現在のWeb画面を同梱してオフライン起動するAndroidアプリです。動画はAndroidのファイル選択画面から参照権限を保持し、元ファイルを複製せずに再生します。端末側で元動画を移動・削除した場合は再関連付けが必要です。
+
+GitHub Actions の `Build PlayStudy APK` は署名済みAPKを成果物として保存します。更新時は `versionCode` を増やし、同じ `applicationId` と署名鍵でビルドしたAPKを上書きインストールします。`PLAYSTUDY_KEYSTORE_BASE64` と `PLAYSTUDY_STORE_PASSWORD` をGitHub Secretsに保存し、署名鍵のバックアップも安全な場所に保管してください。PWAとAPKは別アプリのため、ブラウザ内データは自動移行されません。

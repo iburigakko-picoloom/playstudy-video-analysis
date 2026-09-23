@@ -1,5 +1,16 @@
 document.documentElement.setAttribute("data-pwa-boot", "started");
 (() => {
+  if (window.PlayStudyNative) {
+    window.playStudyPWA = {
+      status: () => ({ standalone: true, installed: true, canPrompt: false, serviceWorker: null, serviceWorkerError: null, isIOS: false, isSafari: false }),
+      install: async () => ({ outcome: "installed" }),
+      update: async () => {},
+      repair: async () => ({ ready: true, url: location.href })
+    };
+    document.documentElement.dataset.pwaMode = "standalone";
+    document.documentElement.dataset.pwaWorker = "native";
+    return;
+  }
   // Bump this key when the install identity changes so a removed/broken old icon
   // never prevents the user from installing the current app again.
   const INSTALLED_KEY = "playstudy_pwa_installed_v3";
