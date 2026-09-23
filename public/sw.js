@@ -12,6 +12,7 @@ const APP_SHELL = [
   scopedUrl("playstudy/player-gestures.js?v=41"),
   scopedUrl("playstudy/app.js?v=41"),
   scopedUrl("playstudy/data-store.js?v=41"),
+  scopedUrl("playstudy/native-adapter.js?v=1"),
   scopedUrl("playstudy/icons/icon-192.png"),
   scopedUrl("playstudy/icons/icon-512.png"),
   scopedUrl("playstudy/icons/icon-maskable-512.png"),

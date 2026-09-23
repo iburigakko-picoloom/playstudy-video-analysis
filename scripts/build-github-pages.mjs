@@ -47,8 +47,10 @@ await cp(join(publicRoot, "playstudy", "sw.js"), join(outputRoot, "playstudy", "
 await cp(join(publicRoot, "playstudy", "player-gestures.js"), join(outputRoot, "playstudy", "player-gestures.js"));
 await cp(join(publicRoot, "playstudy", "app.js"), join(outputRoot, "playstudy", "app.js"));
 await cp(join(publicRoot, "playstudy", "data-store.js"), join(outputRoot, "playstudy", "data-store.js"));
+await cp(join(publicRoot, "playstudy", "native-adapter.js"), join(outputRoot, "playstudy", "native-adapter.js"));
 await cp(join(publicRoot, "playstudy", "styles.css"), join(outputRoot, "playstudy", "styles.css"));
 await cp(join(publicRoot, "playstudy", "icons"), join(outputRoot, "playstudy", "icons"), { recursive: true });
+await cp(join(publicRoot, "downloads"), join(outputRoot, "downloads"), { recursive: true });
 await writeFile(join(outputRoot, ".nojekyll"), "");
 
 console.log(`GitHub Pages bundle ready: ${outputRoot}`);
