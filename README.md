@@ -25,6 +25,8 @@ npm run dev
 
 ## Android APK
 
+最新のインストール・更新用APK: [PlayStudy v1.0.1](https://iburigakko-picoloom.github.io/playstudy-video-analysis/downloads/PlayStudy-v1.0.1.apk)。以前のAPKには動画選択後に読み込めない問題があるため、同じ署名のこの版で上書き更新してください。
+
 `android/` は現在のWeb画面を同梱してオフライン起動するAndroidアプリです。動画はAndroidのファイル選択画面から参照権限を保持し、元ファイルを複製せずに再生します。端末側で元動画を移動・削除した場合は再関連付けが必要です。
 
 GitHub Actions の `Build PlayStudy APK` は署名済みAPKを成果物として保存します。更新時は `versionCode` を増やし、同じ `applicationId` と署名鍵でビルドしたAPKを上書きインストールします。`PLAYSTUDY_KEYSTORE_BASE64` と `PLAYSTUDY_STORE_PASSWORD` をGitHub Secretsに保存し、署名鍵のバックアップも安全な場所に保管してください。PWAとAPKは別アプリのため、ブラウザ内データは自動移行されません。
