@@ -25,7 +25,7 @@ npm run dev
 
 ## Android APK
 
-最新のインストール・更新用APK: [PlayStudy v1.0.1](https://iburigakko-picoloom.github.io/playstudy-video-analysis/downloads/PlayStudy-v1.0.1.apk)。以前のAPKには動画選択後に読み込めない問題があるため、同じ署名のこの版で上書き更新してください。
+最新のインストール・更新用APK: [PlayStudy v1.0.2](https://iburigakko-picoloom.github.io/playstudy-video-analysis/downloads/PlayStudy-v1.0.2.apk)。同じ署名のAPKで上書き更新してください。
 
 `android/` は現在のWeb画面を同梱してオフライン起動するAndroidアプリです。動画はAndroidのファイル選択画面から参照権限を保持し、元ファイルを複製せずに再生します。端末側で元動画を移動・削除した場合は再関連付けが必要です。
 
