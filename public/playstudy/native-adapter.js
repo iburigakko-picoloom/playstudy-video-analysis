@@ -3,6 +3,13 @@
   const native = window.PlayStudyNative;
   if (!native) return;
 
+  const webRoute = route;
+  route = function (screenName, id) {
+    native.setPlayerOrientation(screenName === 'player');
+    return webRoute(screenName, id);
+  };
+  native.setPlayerOrientation(state.screen === 'player');
+
   STORED_VIDEO_MODES.add('native-uri');
   const webHydrateVideo = hydrateVideo;
   hydrateVideo = async function (item, force = false) {

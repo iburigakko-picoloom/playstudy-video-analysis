@@ -2,6 +2,7 @@ package jp.playstudy.apk;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.Configuration;
 import android.database.Cursor;
@@ -70,7 +71,11 @@ public final class MainActivity extends Activity {
                 }
                 String path = url.getPath();
                 if (path != null && path.startsWith("/native-media/")) {
-                    return mediaResponse(path.substring("/native-media/".length()), request.getRequestHeaders().get("Range"));
+                    String range = null;
+                    for (Map.Entry<String, String> header : request.getRequestHeaders().entrySet()) {
+                        if ("range".equalsIgnoreCase(header.getKey())) range = header.getValue();
+                    }
+                    return mediaResponse(path.substring("/native-media/".length()), range);
                 }
                 WebResourceResponse response = assetLoader.shouldInterceptRequest(url);
                 return response != null ? response : errorResponse(404);
@@ -108,8 +113,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        webView.evaluateJavascript("(function(){const d=document.querySelector('dialog[open]');if(d){d.close();return 'handled'}if(state.screen==='researchDetail'){route('research');return 'handled'}if(state.screen!=='library'){route('library');return 'handled'}return 'exit'})()",
+                result -> { if ("\"exit\"".equals(result)) finish(); });
     }
 
     @Override protected void onDestroy() {
@@ -134,6 +139,12 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface public String mediaUrl(String id) {
             return ORIGIN + "/native-media/" + Uri.encode(id);
+        }
+
+        @JavascriptInterface public void setPlayerOrientation(boolean player) {
+            runOnUiThread(() -> setRequestedOrientation(player
+                    ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
         }
 
         @JavascriptInterface public boolean hasMedia(String id) {
@@ -164,13 +175,16 @@ public final class MainActivity extends Activity {
         JSONArray items = new JSONArray();
         if (data.getClipData() != null) {
             for (int index = 0; index < data.getClipData().getItemCount(); index++) {
-                addPickedVideo(items, data.getClipData().getItemAt(index).getUri(), "");
+                addPickedVideo(items, data.getClipData().getItemAt(index).getUri(), relinkId);
+                if (!relinkId.isEmpty()) break;
             }
         } else if (data.getData() != null) {
             addPickedVideo(items, data.getData(), relinkId);
         }
         if (items.length() > 0) {
             webView.evaluateJavascript("window.playStudyNativeFilesSelected(" + items + "," + JSONObject.quote(relinkId) + ")", null);
+        } else {
+            webView.evaluateJavascript("toast('動画を参照できません。ファイルアプリから選んでください')", null);
         }
     }
 
@@ -254,6 +268,7 @@ public final class MainActivity extends Activity {
             if (length > 0) headers.put("Content-Length", String.valueOf(remaining));
             if (partial) headers.put("Content-Range", "bytes " + start + "-" + end + "/" + length);
             String mime = getContentResolver().getType(uri);
+            headers.put("Content-Type", mime == null ? "video/mp4" : mime);
             return new WebResourceResponse(mime == null ? "video/mp4" : mime, null,
                     partial ? 206 : 200, partial ? "Partial Content" : "OK", headers, stream);
         } catch (Exception error) {

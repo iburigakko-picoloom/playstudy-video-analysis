@@ -14,6 +14,7 @@ function boot() {
   let writes = 0;
   const native = {
     pickVideos: id => picks.push(id),
+    setPlayerOrientation: () => {},
     hasMedia: () => true,
     mediaUrl: id => `https://appassets.androidplatform.net/native-media/${id}`
   };
