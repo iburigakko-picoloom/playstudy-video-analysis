@@ -50,7 +50,7 @@ public final class VideoSmokeTest {
                 "typeof window.playStudyNativeFilesSelected === 'function'", "true", 20000));
         evaluate(web.get(), "window.playStudyNativeFilesSelected([{id:'smoke',name:'sample.mp4',type:'video/mp4'}],'')");
         assertTrue("Selected video did not load metadata: " + evaluate(web.get(),
-                        "JSON.stringify({screen:state.screen,error:document.querySelector('#main-video')?.error?.code||0,ready:document.querySelector('#main-video')?.readyState||0})"),
+                        "JSON.stringify({screen:state.screen,error:document.querySelector('#main-video')?.error?.code||0,ready:document.querySelector('#main-video')?.readyState||0,network:document.querySelector('#main-video')?.networkState||0,src:document.querySelector('#main-video')?.currentSrc||'',missing:activeV()?.missingSource||false})"),
                 waitFor(web.get(), "document.querySelector('#main-video')?.readyState >= 1", "true", 30000));
     }
 

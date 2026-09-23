@@ -14,12 +14,15 @@ import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.webkit.ConsoleMessage;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebResourceError;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.util.Log;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -81,6 +84,7 @@ public final class MainActivity extends Activity {
                 }
                 String path = url.getPath();
                 if (path != null && path.startsWith("/native-media/")) {
+                    Log.d("PlayStudy", "Media request " + request.getMethod() + " " + path);
                     String range = null;
                     for (Map.Entry<String, String> header : request.getRequestHeaders().entrySet()) {
                         if ("range".equalsIgnoreCase(header.getKey())) range = header.getValue();
@@ -89,6 +93,10 @@ public final class MainActivity extends Activity {
                 }
                 WebResourceResponse response = assetLoader.shouldInterceptRequest(url);
                 return response != null ? response : errorResponse(404);
+            }
+
+            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                Log.w("PlayStudy", "Web resource error: " + request.getUrl() + " " + error.getDescription());
             }
 
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -101,6 +109,10 @@ public final class MainActivity extends Activity {
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onConsoleMessage(ConsoleMessage message) {
+                Log.d("PlayStudy", "JS " + message.messageLevel() + ": " + message.message());
+                return true;
+            }
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (webFileCallback != null) webFileCallback.onReceiveValue(null);
                 webFileCallback = callback;
@@ -332,9 +344,11 @@ public final class MainActivity extends Activity {
             if (partial) headers.put("Content-Range", "bytes " + start + "-" + end + "/" + length);
             String mime = getContentResolver().getType(uri);
             headers.put("Content-Type", mime == null ? "video/mp4" : mime);
+            Log.d("PlayStudy", "Media response " + (partial ? 206 : 200) + " length=" + length + " range=" + rangeHeader);
             return new WebResourceResponse(mime == null ? "video/mp4" : mime, null,
                     partial ? 206 : 200, partial ? "Partial Content" : "OK", headers, stream);
         } catch (Exception error) {
+            Log.w("PlayStudy", "Media response failed for " + id, error);
             return errorResponse(404);
         }
     }
