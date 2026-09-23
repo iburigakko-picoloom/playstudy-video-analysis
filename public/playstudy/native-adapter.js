@@ -46,29 +46,16 @@
     loading.setAttribute('role', 'status');
     loading.innerHTML = '<span aria-hidden="true"></span><b>動画を読み込み中</b>';
     if (media.readyState < 1) media.after(loading);
-    let fallback = false;
     let timer;
     const showFailure = () => {
       if (!media.isConnected) return;
-      loading.remove();
-      current.src = '';
-      current.missingSource = true;
-      persist('videos');
-      render();
-      toast('動画を再生できません。元動画を再選択してください');
-    };
-    const tryFallback = () => {
-      if (!media.isConnected) return;
       clearTimeout(timer);
-      if (fallback) return showFailure();
-      fallback = true;
-      const label = loading.querySelector('b');
-      if (label) label.textContent = '別の方法で動画を開いています';
-      const uri = native.contentUrl(current.id);
-      if (!uri) return showFailure();
-      media.src = uri;
-      media.load();
-      timer = setTimeout(() => { if (media.readyState < 1) showFailure(); }, 10000);
+      loading.innerHTML = '<b>動画を開けません。通信や動画形式を確認してください</b><button type="button">再試行</button>';
+      loading.querySelector('button').onclick = () => {
+        loading.innerHTML = '<span aria-hidden="true"></span><b>動画を読み込み中</b>';
+        media.load();
+        timer = setTimeout(() => { if (media.readyState < 1) showFailure(); }, 30000);
+      };
     };
     media.addEventListener('loadedmetadata', () => {
       clearTimeout(timer);
@@ -77,8 +64,8 @@
       current.missingSource = false;
       persist('videos');
     });
-    media.addEventListener('error', tryFallback);
-    timer = setTimeout(() => { if (media.readyState < 1) tryFallback(); }, 8000);
+    media.addEventListener('error', showFailure);
+    timer = setTimeout(() => { if (media.readyState < 1) showFailure(); }, 30000);
     focusPlayerController?.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
   };
 
@@ -116,7 +103,9 @@
     if (!persist('videos')) return toast('動画情報を保存できませんでした');
     if (state.simpleMode && added.length === 1 && !relinkId) route('player', added[0]);
     else render();
-    toast(relinkId ? '元動画を再関連付けしました' : `${added.length}本追加しました`);
+    toast(items.some(item => item.persistent === false)
+      ? '動画を追加しました。再起動後は再選択が必要な場合があります'
+      : relinkId ? '元動画を再関連付けしました' : `${added.length}本追加しました`);
   };
 
   window.playStudyNativeMetadata = item => {

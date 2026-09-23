@@ -184,6 +184,7 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public boolean hasMedia(String id) {
+            if (mediaServer == null) return false;
             String uri = getPreferences(MODE_PRIVATE).getString("media:" + id, null);
             if (uri == null) return false;
             try {
@@ -273,7 +274,16 @@ public final class MainActivity extends Activity {
 
     private void addPickedVideo(JSONArray items, Uri uri, String relinkId) {
         try {
-            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            boolean persistent = true;
+            try { getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); }
+            catch (SecurityException error) {
+                // Some document providers allow this selection but not a durable grant.
+                persistent = false;
+                Log.w("PlayStudy", "Video provider did not grant persistent access: " + uri);
+            }
+            try (AssetFileDescriptor ignored = getContentResolver().openAssetFileDescriptor(uri, "r")) {
+                if (ignored == null) throw new IOException("Selected video cannot be opened");
+            }
             String id = relinkId.isEmpty() ? "v-" + UUID.randomUUID() : relinkId;
             String name = "動画";
             String type = getContentResolver().getType(uri);
@@ -286,9 +296,10 @@ public final class MainActivity extends Activity {
             item.put("id", id);
             item.put("name", name == null ? "動画" : name);
             item.put("type", type == null ? "video/mp4" : type);
+            item.put("persistent", persistent);
             items.put(item);
-        } catch (Exception ignored) {
-            // Do not add a video when the permission cannot survive an app restart.
+        } catch (Exception error) {
+            Log.w("PlayStudy", "Selected video cannot be opened: " + uri, error);
         }
     }
 
