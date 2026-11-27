@@ -853,6 +853,9 @@ function bindFocusPlayer(){
  const scheduleTapExpiry=()=>{clearTimeout(tapTimer);if(tapState.phase==='IDLE')return;const delay=Math.max(0,tapState.deadlineAt-performance.now())+24;tapTimer=setTimeout(()=>{const result=tapMachine.transition(tapState,{type:'expire',at:performance.now()});tapState=result.state;applyTapEffects(result.effects);if(tapState.phase!=='IDLE')scheduleTapExpiry()},delay)};
  $$('[data-focus-skip]').forEach(button=>on(button,'click',event=>{event.stopPropagation();resetTapSequence();const seconds=+button.dataset.focusSkip;seek(vid,vid.currentTime+seconds);showSkip(seconds,seconds<0?'left':'right');setHud(true);scheduleHud()}));
  let frameTarget=vid.currentTime;
+ const frameBridge = window.PlayStudyNative?.adjacentFrame && current.storageMode==='native-uri' ? window.PlayStudyNative : null;
+ frameBridge?.prepareFrames(current.id);
+ let indexNotice=false;
  const announceFrame=delta=>{const live=$('#focus-player-live');if(live)live.textContent=`1コマ${delta<0?'戻る':'進む'}、${fmt(frameTarget,true)}`};
  let queuedFrame=null;
  on(vid,'seeked',()=>{
@@ -864,7 +867,12 @@ function bindFocusPlayer(){
  const stepOneFrame=(delta,useTarget=false)=>{
   const duration=Number.isFinite(vid.duration)&&vid.duration>0?vid.duration:Infinity;
   const start=frameTarget;
-  const next=clamp(start+delta/fps,0,duration),moved=Math.abs(next-start)>.000001;
+  const indexed=frameBridge ? frameBridge.adjacentFrame(current.id,start,delta,Number.isFinite(duration)?duration:start) : -2;
+  if(indexed===-1){
+   if(!indexNotice){toast('コマ送りを準備中です');indexNotice=true}
+   return {moved:false,canContinue:true};
+  }
+  const next=clamp(indexed>=0?indexed:start+delta/fps,0,duration),moved=Math.abs(next-start)>.000001;
   frameTarget=next;
   if(moved){
    vid.pause();
@@ -875,9 +883,48 @@ function bindFocusPlayer(){
    framePrecisionTimer=setTimeout(()=>{frameTimePreciseUntil=0;updateHud()},1650);
    updateHud();setHud(true);
   }
-  return {moved,canContinue:delta<0?next>.0005:!Number.isFinite(duration)||next<duration-.0005};
+  return {moved,canContinue:moved&&(delta<0?next>.0005:!Number.isFinite(duration)||next<duration-.0005)};
  };
- const bindFrameButton=button=>{const delta=+button.dataset.focusFrame;let holdDelay,repeatTimer,repeating=false,suppressFrameClickUntil=0,pointerId=null;const stop=(announce=true,event=null)=>{if(event&&pointerId!=null&&event.pointerId!==pointerId)return;clearTimeout(holdDelay);clearInterval(repeatTimer);const wasRepeating=repeating,finishedPointer=pointerId;repeating=false;pointerId=null;button.classList.remove('is-repeating');if(finishedPointer!=null)try{if(button.hasPointerCapture(finishedPointer))button.releasePointerCapture(finishedPointer)}catch{}if(activeFrameStop===stop)activeFrameStop=null;if(wasRepeating){suppressFrameClickUntil=performance.now()+420;if(announce)announceFrame(delta)}};on(button,'pointerdown',event=>{if(button.disabled)return;event.stopPropagation();if(event.isPrimary===false)return;activeFrameStop?.(false);setFrameMode(true);pointerId=event.pointerId;try{button.setPointerCapture(pointerId)}catch{}activeFrameStop=stop;holdDelay=setTimeout(()=>{repeating=true;button.classList.add('is-repeating');const first=stepOneFrame(delta,true);if(!first.canContinue){stop(true);return}repeatTimer=setInterval(()=>{if(vid.seeking||queuedFrame!==null)return;const result=stepOneFrame(delta,true);if(!result.canContinue)stop(true)},state.settings.frameHoldMs||160)},420)});on(window,'pointerup',event=>stop(true,event),{capture:true});on(window,'pointercancel',event=>stop(false,event),{capture:true});on(button,'lostpointercapture',event=>stop(true,event));on(button,'click',event=>{event.stopPropagation();setFrameMode(true);if(performance.now()<suppressFrameClickUntil){event.preventDefault();return}const result=stepOneFrame(delta,false);if(result.moved)announceFrame(delta)})};
+ const bindFrameButton=button=>{
+  const delta=+button.dataset.focusFrame;
+  let holdDelay,repeatTimer,pointerId=null,repeating=false,ignoreReleaseClick=false;
+  const stop=(announce=true,event=null)=>{
+   if(pointerId===null || (event && event.pointerId!==pointerId))return;
+   clearTimeout(holdDelay);clearInterval(repeatTimer);
+   const finished=pointerId;
+   pointerId=null;
+   ignoreReleaseClick=repeating || !announce;
+   button.classList.remove('is-repeating');
+   if(activeFrameStop===stop)activeFrameStop=null;
+   try{if(button.hasPointerCapture(finished))button.releasePointerCapture(finished)}catch{}
+   if(repeating && announce)announceFrame(delta);
+   repeating=false;
+  };
+  on(button,'pointerdown',event=>{
+   if(button.disabled || event.isPrimary===false)return;
+   event.stopPropagation();activeFrameStop?.(false);setFrameMode(true);
+   pointerId=event.pointerId;ignoreReleaseClick=false;activeFrameStop=stop;
+   try{button.setPointerCapture(pointerId)}catch{}
+   holdDelay=setTimeout(()=>{repeating=true;
+    button.classList.add('is-repeating');
+    const advance=()=>{
+     if(vid.seeking || queuedFrame!==null)return;
+     if(!stepOneFrame(delta).canContinue)stop(true);
+    };
+    repeatTimer=setInterval(advance,state.settings.frameHoldMs||160);
+    advance();
+   },420);
+  });
+  on(window,'pointerup',event=>stop(true,event),{capture:true});
+  on(window,'pointercancel',event=>stop(false,event),{capture:true});
+  on(button,'lostpointercapture',event=>stop(false,event));
+  on(button,'click',event=>{
+   event.stopPropagation();
+   if(ignoreReleaseClick && event.detail!==0){ignoreReleaseClick=false;event.preventDefault();return}
+   setFrameMode(true);
+   if(stepOneFrame(delta).moved)announceFrame(delta);
+  });
+ };
  $$('[data-focus-frame]').forEach(button=>{bindFrameButton(button);button.textContent=(+button.dataset.focusFrame<0?'−':'＋')+'コマ送り';button.setAttribute('aria-label','コマ送り。約1/'+fps+'秒'+(+button.dataset.focusFrame<0?'戻る':'進む')+'。長押しで連続')});
  on($('#focus-speed'),'change',event=>{event.stopPropagation();holdBoost?.stop();const next=+event.target.value;vid.playbackRate=next;current.lastSpeed=next;persist('videos');setHud(true)});
  let preciseSeek=false;on($('#focus-precise-seek'),'click',()=>{preciseSeek=!preciseSeek;const button=$('#focus-precise-seek');button.setAttribute('aria-pressed',String(preciseSeek));button.setAttribute('aria-label',`精密を${preciseSeek?'オフ':'オン'}にする。長押しで動かすとき、バー全体の幅で最大30秒移動`);$('#focus-precise-seek-hint').hidden=!preciseSeek;setHud(true)});

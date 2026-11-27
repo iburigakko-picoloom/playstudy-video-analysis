@@ -33,7 +33,7 @@ public final class VideoSmokeTest {
         activityRule.getScenario().onActivity(activity -> {
             try {
                 File sample = new File(activity.getCacheDir(), "playstudy-smoke.mp4");
-                try (InputStream source = activity.getAssets().open("test/sample.mp4");
+                try (InputStream source = InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("frame-test.mp4");
                      FileOutputStream output = new FileOutputStream(sample)) {
                     byte[] buffer = new byte[8192];
                     int count;
@@ -62,7 +62,41 @@ public final class VideoSmokeTest {
         assertTrue("Selected video did not load metadata: " + evaluate(web.get(),
                         "JSON.stringify({screen:state.screen,error:document.querySelector('#main-video')?.error?.code||0,ready:document.querySelector('#main-video')?.readyState||0,network:document.querySelector('#main-video')?.networkState||0,src:document.querySelector('#main-video')?.currentSrc||'',missing:activeV()?.missingSource||false})"),
                 waitFor(web.get(), "document.querySelector('#main-video')?.readyState >= 1", "true", 30000));
+        assertTrue("Frame index did not become available", waitFor(web.get(),
+                "window.PlayStudyNative.adjacentFrame('smoke',1,1,2)>1", "true", 15000));
+        evaluate(web.get(), "window.frameReport='running'; (" + FRAME_CHECK + ")().then(()=>frameReport='pass',e=>frameReport=String(e))");
+        assertTrue("Frame test timed out", waitFor(web.get(), "frameReport!=='running'", "true", 30000));
+        org.junit.Assert.assertEquals("WebView frame stepping", "\"pass\"", evaluate(web.get(),"frameReport"));
     }
+
+    private static final String FRAME_CHECK = """
+        async function(){
+          const v=document.querySelector('#main-video'), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const btn=d=>document.querySelector('[data-focus-frame="'+d+'"]');
+          const settle=async()=>{for(let n=0;v.seeking && n<100;n++)await sleep(20);await sleep(75)};
+          v.pause();v.currentTime=0.98;await settle();
+          let shown=[],watch=true;
+          function observe(_,m){shown.push(m.mediaTime);if(watch)v.requestVideoFrameCallback(observe)}
+          v.requestVideoFrameCallback(observe);
+          for(let i=0;i<16;i++){
+            btn(1).click();await settle();
+            const expected=1+(i+.5)/60;
+            if(Math.abs(v.currentTime-expected)>.002)throw Error('Forward '+i+' at '+v.currentTime);
+          }
+          if(shown.length<2)throw Error('Insufficient displayed frames: '+shown.length);
+          for(let i=1;i<shown.length;i++)if(shown[i]<shown[i-1])throw Error('Visible reversal '+shown);
+          watch=false;
+          for(let i=0;i<6;i++){
+            btn(-1).click();await settle();
+            if(Math.abs(v.currentTime-(1+(14.5-i)/60))>.002)throw Error('Back '+i+' at '+v.currentTime);
+          }
+          const b=btn(1),press=()=>b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,isPrimary:true})),
+            lift=()=>{window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));b.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1}))};
+          press();await sleep(850);lift();await settle();
+          const released=v.currentTime;press();lift();await settle();
+          if(Math.abs(v.currentTime-released-1/60)>.002)throw Error('Tap after hold '+released+' to '+v.currentTime);
+        }
+        """;
 
     private static boolean waitFor(WebView web, String expression, String expected, long timeoutMs)
             throws Exception {

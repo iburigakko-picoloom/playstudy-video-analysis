@@ -56,6 +56,9 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> webFileCallback;
     private String pendingRelinkId = "";
     private final ExecutorService metadataExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService indexExecutor = Executors.newSingleThreadExecutor();
+    private volatile FrameTimes frameTimes;
+    private volatile String indexKey = "";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -147,6 +150,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        indexKey = "";
+        indexExecutor.shutdownNow();
         metadataExecutor.shutdownNow();
         if (mediaServer != null) mediaServer.close();
         webView.removeJavascriptInterface("PlayStudyNative");
@@ -155,6 +160,32 @@ public final class MainActivity extends Activity {
     }
 
     private final class NativeBridge {
+        @JavascriptInterface public synchronized void prepareFrames(String id) {
+            String uri = getPreferences(MODE_PRIVATE).getString("media:" + id, null);
+            if (uri == null) return;
+            String key = id + "\n" + uri;
+            if (key.equals(indexKey)) return;
+            indexKey = key;
+            frameTimes = null;
+            indexExecutor.execute(() -> {
+                FrameTimes result;
+                try {
+                    result = FrameTimes.read(MainActivity.this, id, Uri.parse(uri), () -> !key.equals(indexKey));
+                } catch (Exception error) {
+                    result = new FrameTimes(id, new long[0]);
+                }
+                synchronized (this) {
+                    if (key.equals(indexKey)) frameTimes = result;
+                }
+            });
+        }
+
+        @JavascriptInterface public double adjacentFrame(String id, double seconds, int direction, double duration) {
+            FrameTimes times = frameTimes;
+            if (times == null || !times.id.equals(id)) return -1;
+            if (times.pts.length == 0) return -2;
+            return times.step(seconds, direction < 0 ? -1 : 1, duration);
+        }
         @JavascriptInterface public void pickVideos(String relinkId) {
             runOnUiThread(() -> {
                 pendingRelinkId = relinkId == null ? "" : relinkId;
