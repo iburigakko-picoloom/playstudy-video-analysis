@@ -62,12 +62,45 @@ public final class VideoSmokeTest {
         assertTrue("Selected video did not load metadata: " + evaluate(web.get(),
                         "JSON.stringify({screen:state.screen,error:document.querySelector('#main-video')?.error?.code||0,ready:document.querySelector('#main-video')?.readyState||0,network:document.querySelector('#main-video')?.networkState||0,src:document.querySelector('#main-video')?.currentSrc||'',missing:activeV()?.missingSource||false})"),
                 waitFor(web.get(), "document.querySelector('#main-video')?.readyState >= 1", "true", 30000));
+        if ("false".equals(evaluate(web.get(),"!!window.PlayStudyNative.adjacentFrame"))) {
+            evaluate(web.get(),"window.baselineReport='running'; (" + BASELINE_CHECK + ")().then(r=>baselineReport=JSON.stringify(r),e=>baselineReport='ERROR '+e)");
+            assertTrue("Baseline timed out",waitFor(web.get(),"baselineReport!=='running'","true",30000));
+            String report=evaluate(web.get(),"baselineReport");
+            android.util.Log.i("FrameAudit",report);
+            assertTrue("Baseline measurement failed: "+report,report.contains("holdFromPlayback"));
+            return;
+        }
         assertTrue("Frame index did not become available", waitFor(web.get(),
                 "window.PlayStudyNative.adjacentFrame('smoke',1,1,2)>1", "true", 15000));
         evaluate(web.get(), "window.frameReport='running'; (" + FRAME_CHECK + ")().then(()=>frameReport='pass',e=>frameReport=String(e))");
         assertTrue("Frame test timed out", waitFor(web.get(), "frameReport!=='running'", "true", 30000));
         org.junit.Assert.assertEquals("WebView frame stepping", "\"pass\"", evaluate(web.get(),"frameReport"));
     }
+
+    private static final String BASELINE_CHECK = """
+        async function(){
+          const v=document.querySelector('#main-video'),b=document.querySelector('[data-focus-frame="1"]');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms)), result={};
+          let frames=[],alive=true;
+          function observe(_,m){frames.push(m.mediaTime);if(alive)v.requestVideoFrameCallback(observe)}
+          v.requestVideoFrameCallback(observe);
+          v.currentTime=.45;await sleep(250);await v.play();await sleep(80);frames=[];
+          b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,isPrimary:true}));
+          await sleep(960);
+          window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
+          b.dispatchEvent(new MouseEvent('click',{detail:1,bubbles:true}));
+          result.holdFromPlayback=frames.slice();
+          result.heldEnd=v.currentTime;
+          b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:2,isPrimary:true}));
+          window.dispatchEvent(new PointerEvent('pointerup',{pointerId:2}));
+          b.dispatchEvent(new MouseEvent('click',{detail:1,bubbles:true}));
+          result.immediateTap=v.currentTime;
+          await sleep(500);frames=[];
+          for(let i=0;i<12;i++){b.click();await sleep(85)}
+          result.forwardTaps=frames;alive=false;
+          return result;
+        }
+        """;
 
     private static final String FRAME_CHECK = """
         async function(){
