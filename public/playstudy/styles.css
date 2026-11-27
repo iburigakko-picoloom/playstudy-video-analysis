@@ -439,8 +439,9 @@ body.player-active .focus-player{
 }
 .focus-center-controls .focus-play{width:64px;height:64px;background:#fff;color:#111;font-size:23px;transition:opacity .14s,transform .14s,visibility .14s}
 .focus-stage.is-frame-mode .focus-play{visibility:hidden;opacity:0;pointer-events:none;transform:scale(.82)}
-.focus-center-controls #focus-play{padding:0;display:grid;place-items:center;font-size:0}
-#focus-play::before{content:"";width:20px;height:22px;background:currentColor;clip-path:polygon(8% 0,100% 50%,8% 100%);transform:translateX(2px)}
+.focus-center-controls>button{position:relative;box-sizing:border-box;padding:0;margin:0;line-height:1;font-variant-numeric:tabular-nums}
+.focus-center-controls #focus-play{padding:0;font-size:0}
+#focus-play::before{content:"";position:absolute;inset:0;margin:auto;width:20px;height:22px;background:currentColor;clip-path:polygon(0 0,100% 50%,0 100%);transform:translateX(2px)}
 #focus-play[aria-label="一時停止"]::before{width:17px;height:20px;clip-path:none;transform:none;background:linear-gradient(to right,currentColor 35%,transparent 35% 65%,currentColor 65%)}
 .focus-bottom-controls{
  position:absolute;
