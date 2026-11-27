@@ -439,6 +439,9 @@ body.player-active .focus-player{
 }
 .focus-center-controls .focus-play{width:64px;height:64px;background:#fff;color:#111;font-size:23px;transition:opacity .14s,transform .14s,visibility .14s}
 .focus-stage.is-frame-mode .focus-play{visibility:hidden;opacity:0;pointer-events:none;transform:scale(.82)}
+.focus-center-controls #focus-play{padding:0;display:grid;place-items:center;font-size:0}
+#focus-play::before{content:"";width:20px;height:22px;background:currentColor;clip-path:polygon(8% 0,100% 50%,8% 100%);transform:translateX(2px)}
+#focus-play[aria-label="一時停止"]::before{width:17px;height:20px;clip-path:none;transform:none;background:linear-gradient(to right,currentColor 35%,transparent 35% 65%,currentColor 65%)}
 .focus-bottom-controls{
  position:absolute;
  right:0;
@@ -779,7 +782,9 @@ html[data-app-boot="error"] .boot-retry{visibility:visible}
 .research-material .scene-card{margin:0;min-width:0}
 .research-material-lane{display:block;font-size:14px;margin:0 0 6px}
 .research-optional summary{min-height:44px;padding:12px 0;cursor:pointer;font-size:16px}
-#focus-precise-seek{min-height:44px;font-size:14px}
+#focus-precise-seek{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:112px;min-height:44px;font-size:14px;line-height:1.15;white-space:nowrap}
+#focus-precise-seek small{font-size:10px;font-weight:600}
+#focus-precise-seek small[hidden]{display:none}
 #focus-precise-seek[aria-pressed=true]{background:#245ccd;color:white}
 #backup-status{font-size:14px;overflow-wrap:anywhere}
 .research-page .theme-tabs .chip,.research-page .scene-card .mini-actions button,.research-page .scene-card .research-link{min-height:44px;font-size:14px}
