@@ -837,7 +837,7 @@ function bindFocusPlayer(){
  const vid=$('#main-video');if(!vid)return;current.lastOpened=Date.now();const fps=current.fps||state.settings.frameRate||30,speeds=[.25,.5,.75,1,1.25,1.5,2],TAP_WINDOW_MS=350,tapMachine=window.PlayStudyGestures.createTapSequence({windowMs:TAP_WINDOW_MS});let tapState=tapMachine.initialState(),hudTimer,tapTimer,feedbackTimer,framePrecisionTimer,saveTimer,seekWasPlaying=false,seekPointerId=null,seekStartX=0,seekStartTime=0,seekDragged=false,suppressClickUntil=0,frameExitClickUntil=0,frameTimePreciseUntil=0,activeFrameStop=null,frameMode=false,commentTab='compose',markerDuration=Math.max(1,current.durationSeconds||1);
  vid.playbackRate=current.lastSpeed||1;applyVideoTransform(vid,current);
  const setHud=visible=>{hud.classList.toggle('is-visible',visible);hud.classList.toggle('is-hidden',!visible)};
- const setFrameMode=active=>{if(active&&!frameMode){vid.pause();frameTarget=vid.currentTime}if(!active)queuedFrame=null;frameMode=!!active;stage.classList.toggle('is-frame-mode',frameMode);$$('[data-focus-frame]').forEach(button=>button.setAttribute('aria-pressed',String(frameMode)));if(frameMode){clearTimeout(hudTimer);setHud(true)}};
+ const setFrameMode=active=>{if(active&&!frameMode){vid.pause();frameTarget=vid.currentTime}if(!active){queuedFrame=null;framePreview?.clear()}frameMode=!!active;stage.classList.toggle('is-frame-mode',frameMode);$$('[data-focus-frame]').forEach(button=>button.setAttribute('aria-pressed',String(frameMode)));if(frameMode){clearTimeout(hudTimer);setHud(true)}};
  const scheduleHud=()=>{clearTimeout(hudTimer);if(seekPointerId==null&&!frameMode&&!vid.paused&&!state.focusCommentOpen)hudTimer=setTimeout(()=>setHud(false),2800)};
  const refreshMemoMarkers=()=>{const layer=$('#focus-memo-markers');if(!layer)return;const duration=Number.isFinite(vid.duration)&&vid.duration>0?vid.duration:Math.max(1,current.durationSeconds||1),videoNotes=state.notes.filter(note=>note.videoId===current.id);markerDuration=duration;layer.innerHTML=focusMemoMarkers(videoNotes,duration)};
  let holdBoost=null;
@@ -853,6 +853,7 @@ function bindFocusPlayer(){
  const scheduleTapExpiry=()=>{clearTimeout(tapTimer);if(tapState.phase==='IDLE')return;const delay=Math.max(0,tapState.deadlineAt-performance.now())+24;tapTimer=setTimeout(()=>{const result=tapMachine.transition(tapState,{type:'expire',at:performance.now()});tapState=result.state;applyTapEffects(result.effects);if(tapState.phase!=='IDLE')scheduleTapExpiry()},delay)};
  $$('[data-focus-skip]').forEach(button=>on(button,'click',event=>{event.stopPropagation();resetTapSequence();const seconds=+button.dataset.focusSkip;seek(vid,vid.currentTime+seconds);showSkip(seconds,seconds<0?'left':'right');setHud(true);scheduleHud()}));
  let frameTarget=vid.currentTime;
+ const framePreview=window.playStudyCreateFramePreview?.(current,vid,signal);
  const frameBridge = window.PlayStudyNative?.adjacentFrame && current.storageMode==='native-uri' ? window.PlayStudyNative : null;
  frameBridge?.prepareFrames(current.id);
  let indexNotice=false;
@@ -876,7 +877,13 @@ function bindFocusPlayer(){
   frameTarget=next;
   if(moved){
    vid.pause();
-   if(vid.seeking)queuedFrame=next;
+   if(framePreview && indexed>=0){
+    framePreview.show(next,()=>{vid.currentTime=next;updateHud()},()=>{
+     frameTarget=vid.currentTime;
+     activeFrameStop?.(false);
+     toast('このコマを表示できませんでした');
+    });
+   }else if(vid.seeking)queuedFrame=next;
    else {queuedFrame=null;vid.currentTime=next}
    frameTimePreciseUntil=performance.now()+1600;
    clearTimeout(framePrecisionTimer);
@@ -908,7 +915,7 @@ function bindFocusPlayer(){
    holdDelay=setTimeout(()=>{repeating=true;
     button.classList.add('is-repeating');
     const advance=()=>{
-     if(vid.seeking || queuedFrame!==null)return;
+     if(vid.seeking || queuedFrame!==null || framePreview?.busy)return;
      if(!stepOneFrame(delta).canContinue)stop(true);
     };
     repeatTimer=setInterval(advance,state.settings.frameHoldMs||160);
@@ -992,7 +999,7 @@ function bindFocusVideoGestures(){
  const midpoint=values=>({x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2});
  const limitPan=()=>{if(current.zoom<=1.001){current.zoom=1;current.panX=0;current.panY=0;return}const rect=stage.getBoundingClientRect(),maxX=rect.width*(current.zoom-1)/2,maxY=rect.height*(current.zoom-1)/2;current.panX=clamp(current.panX,-maxX,maxX);current.panY=clamp(current.panY,-maxY,maxY)};
  const showZoom=()=>{clearTimeout(badgeTimer);badge.textContent=`${current.zoom.toFixed(current.zoom<2?1:0)}×`;badge.classList.add('is-visible');badgeTimer=setTimeout(()=>badge.classList.remove('is-visible'),700)};
- const apply=()=>{limitPan();applyVideoTransform(vid,current);stage.classList.toggle('is-zoomed',current.zoom>1.001);const reset=$('#focus-reset-zoom');if(reset)reset.hidden=current.zoom<=1.001;showZoom()};
+ const apply=()=>{limitPan();applyVideoTransform(vid,current);const frame=stage.querySelector('.native-frame-preview');if(frame)applyVideoTransform(frame,current);stage.classList.toggle('is-zoomed',current.zoom>1.001);const reset=$('#focus-reset-zoom');if(reset)reset.hidden=current.zoom<=1.001;showZoom()};
  const cancelLongPress=()=>{if(primaryId==null||typeof PointerEvent!=='function')return;try{window.dispatchEvent(new PointerEvent('pointercancel',{pointerId:primaryId}))}catch{}};
  listen(stage,'pointerdown',event=>{if(event.target.closest('button,input,select,textarea,label,.focus-comment-sheet,.focus-seek-hit'))return;pointers.set(event.pointerId,point(event));if(pointers.size===1){primaryId=event.pointerId;pan={x:event.clientX,y:event.clientY,px:current.panX,py:current.panY};moved=false;return}if(pointers.size===2){const values=[...pointers.values()],mid=midpoint(values),rect=stage.getBoundingClientRect(),zoom=current.zoom||1;cancelLongPress();pinch={distance:Math.max(1,Math.hypot(values[0].x-values[1].x,values[0].y-values[1].y)),zoom,contentX:(mid.x-rect.left-rect.width/2-current.panX)/zoom,contentY:(mid.y-rect.top-rect.height/2-current.panY)/zoom};pan=null;moved=true;blockClickUntil=performance.now()+700;event.preventDefault();event.stopImmediatePropagation()}},{capture:true});
  listen(stage,'pointermove',event=>{if(!pointers.has(event.pointerId))return;pointers.set(event.pointerId,point(event));if(pointers.size===2&&pinch){const values=[...pointers.values()],mid=midpoint(values),rect=stage.getBoundingClientRect(),distance=Math.hypot(values[0].x-values[1].x,values[0].y-values[1].y),zoom=clamp(pinch.zoom*distance/pinch.distance,1,8);current.zoom=zoom;current.panX=mid.x-rect.left-rect.width/2-pinch.contentX*zoom;current.panY=mid.y-rect.top-rect.height/2-pinch.contentY*zoom;moved=true;blockClickUntil=performance.now()+700;apply();event.preventDefault();event.stopImmediatePropagation();return}if(pointers.size===1&&pan&&current.zoom>1){const dx=event.clientX-pan.x,dy=event.clientY-pan.y;if(!moved&&Math.hypot(dx,dy)>5){moved=true;cancelLongPress()}if(moved){current.panX=pan.px+dx;current.panY=pan.py+dy;blockClickUntil=performance.now()+500;apply();event.preventDefault();event.stopImmediatePropagation()}}},{capture:true});

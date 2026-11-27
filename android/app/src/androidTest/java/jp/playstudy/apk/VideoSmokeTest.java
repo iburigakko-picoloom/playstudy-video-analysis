@@ -73,7 +73,7 @@ public final class VideoSmokeTest {
         assertTrue("Frame index did not become available", waitFor(web.get(),
                 "window.PlayStudyNative.adjacentFrame('smoke',1,1,2)>1", "true", 15000));
         evaluate(web.get(), "window.frameReport='running'; (" + FRAME_CHECK + ")().then(()=>frameReport='pass',e=>frameReport=String(e))");
-        assertTrue("Frame test timed out", waitFor(web.get(), "frameReport!=='running'", "true", 30000));
+        assertTrue("Frame test timed out", waitFor(web.get(), "frameReport!=='running'", "true", 90000));
         org.junit.Assert.assertEquals("WebView frame stepping", "\"pass\"", evaluate(web.get(),"frameReport"));
     }
 
@@ -108,26 +108,66 @@ public final class VideoSmokeTest {
           const btn=d=>document.querySelector('[data-focus-frame="'+d+'"]');
           const settle=async()=>{for(let n=0;v.seeking && n<100;n++)await sleep(20);await sleep(75)};
           v.pause();v.currentTime=0.98;await settle();
-          let shown=[],watch=true;
-          function observe(_,m){shown.push(m.mediaTime);if(watch)v.requestVideoFrameCallback(observe)}
-          v.requestVideoFrameCallback(observe);
+          const layer=()=>document.querySelector('.native-frame-preview');
+          const canvas=document.createElement('canvas');canvas.width=64;canvas.height=36;
+          const ctx=canvas.getContext('2d',{willReadFrequently:true});
+          const pixels=image=>{ctx.drawImage(image,0,0,64,36);return canvas.toDataURL()};
+          const signatures=[], seen=[];
+          let watching=true,previous=null;
+          function observe(){
+            const visible=layer();
+            if(visible!==previous){
+              seen.push(visible?pixels(visible):'missing');
+              previous=visible;
+            }
+            if(watching)requestAnimationFrame(observe);
+          }
+          requestAnimationFrame(observe);
+          async function waitFrame(expected){
+            for(let n=0;n<150;n++){
+              if(layer() && Math.abs(v.currentTime-expected)<.002 && !v.seeking)return;
+              await sleep(20);
+            }
+            throw Error('Frame missing at '+expected+' actual '+v.currentTime);
+          }
           for(let i=0;i<16;i++){
-            btn(1).click();await settle();
+            btn(1).click();
             const expected=1+(i+.5)/60;
-            if(Math.abs(v.currentTime-expected)>.002)throw Error('Forward '+i+' at '+v.currentTime);
+            await waitFrame(expected);
+            const reference=new Image();
+            reference.src='/frame-preview/smoke?at='+expected;
+            await reference.decode();
+            const signature=pixels(reference);
+            signatures.push(signature);
+            if(pixels(layer())!==signature)throw Error('Wrong visible image at step '+i);
+            await sleep(50);
           }
-          if(shown.length<2)throw Error('Insufficient displayed frames: '+shown.length);
-          for(let i=1;i<shown.length;i++)if(shown[i]<shown[i-1])throw Error('Visible reversal '+shown);
-          watch=false;
+          watching=false;
+          if(new Set(signatures).size<8 || seen.length<8)throw Error('Insufficient distinct visible frames');
+          let pos=-1;
+          for(const signature of seen){
+            pos=signatures.indexOf(signature,pos+1);
+            if(pos<0)throw Error('An older or missing image became visible');
+          }
           for(let i=0;i<6;i++){
-            btn(-1).click();await settle();
-            if(Math.abs(v.currentTime-(1+(14.5-i)/60))>.002)throw Error('Back '+i+' at '+v.currentTime);
+            btn(-1).click();await waitFrame(1+(14.5-i)/60);
+            if(pixels(layer())!==signatures[14-i])throw Error('Wrong backward image '+i);
           }
+          let burstActive=true,burstError='',lastIndex=9;
+          function watchBurst(){
+            const index=layer()?signatures.indexOf(pixels(layer()),lastIndex):-1;
+            if(index<lastIndex)burstError='Reversal during rapid taps from '+lastIndex+' to '+index;
+            else lastIndex=index;
+            if(burstActive)requestAnimationFrame(watchBurst);
+          }
+          watchBurst();
+          for(let i=0;i<6;i++){btn(1).click();await sleep(8)}
+          await waitFrame(1+15.5/60);await sleep(100);burstActive=false;
+          if(burstError || pixels(layer())!==signatures[15])throw Error(burstError||'Wrong final image after burst');
           const b=btn(1),press=()=>b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,isPrimary:true})),
             lift=()=>{window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));b.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1}))};
-          press();await sleep(850);lift();await settle();
-          const released=v.currentTime;press();lift();await settle();
-          if(Math.abs(v.currentTime-released-1/60)>.002)throw Error('Tap after hold '+released+' to '+v.currentTime);
+          press();await sleep(850);lift();await sleep(200);await settle();
+          const released=v.currentTime;press();lift();await waitFrame(released+1/60);
         }
         """;
 

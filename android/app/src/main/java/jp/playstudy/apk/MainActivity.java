@@ -58,6 +58,72 @@ public final class MainActivity extends Activity {
     private final ExecutorService metadataExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService indexExecutor = Executors.newSingleThreadExecutor();
     private volatile FrameTimes frameTimes;
+    private MediaMetadataRetriever previewDecoder;
+    private String previewSource;
+    private final android.util.LruCache<Integer, byte[]> previewCache =
+            new android.util.LruCache<Integer, byte[]>(3 * 1024 * 1024) {
+                @Override protected int sizeOf(Integer key, byte[] value) { return value.length; }
+            };
+
+    private synchronized void closePreviewDecoder() {
+        previewCache.evictAll();
+        if (previewDecoder != null) {
+            try { previewDecoder.release(); } catch (Exception ignored) { }
+        }
+        previewDecoder = null;
+        previewSource = null;
+    }
+
+    // WebView calls this on a loader thread. Only explicitly registered videos are readable.
+    private synchronized WebResourceResponse previewFrame(Uri url) {
+        FrameTimes times = frameTimes;
+        if (isDestroyed() || times == null || times.pts.length == 0 ||
+                !times.id.equals(url.getLastPathSegment())) return errorResponse(404);
+        String uri = getPreferences(MODE_PRIVATE).getString("media:" + times.id, null);
+        if (uri == null) return errorResponse(404);
+        Bitmap frame = null;
+        try {
+            double seconds = Double.parseDouble(url.getQueryParameter("at"));
+            if (!Double.isFinite(seconds) || seconds < 0) return errorResponse(400);
+            int index = times.indexAt(seconds);
+            if (!uri.equals(previewSource)) {
+                closePreviewDecoder();
+                previewDecoder = new MediaMetadataRetriever();
+                previewDecoder.setDataSource(this, Uri.parse(uri));
+                previewSource = uri;
+            }
+            byte[] bytes = previewCache.get(index);
+            if (bytes == null) {
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    try { frame = previewDecoder.getFrameAtIndex(index); }
+                    catch (RuntimeException unsupportedIndex) {
+                        Log.d("PlayStudy", "Using presentation time for frame extraction");
+                    }
+                }
+                if (frame == null) frame = previewDecoder.getFrameAtTime(times.pts[index], MediaMetadataRetriever.OPTION_CLOSEST);
+                if (frame == null) return errorResponse(404);
+                int largest = Math.max(frame.getWidth(), frame.getHeight());
+                if (largest > 1440) {
+                    Bitmap scaled = Bitmap.createScaledBitmap(frame,
+                            Math.max(1, frame.getWidth() * 1440 / largest),
+                            Math.max(1, frame.getHeight() * 1440 / largest), true);
+                    frame.recycle();
+                    frame = scaled;
+                }
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                if (!frame.compress(Bitmap.CompressFormat.JPEG, 88, buffer)) return errorResponse(500);
+                bytes = buffer.toByteArray();
+                previewCache.put(index, bytes);
+            }
+            return new WebResourceResponse("image/jpeg", null, 200, "OK",
+                    java.util.Collections.singletonMap("Cache-Control","no-store"), new ByteArrayInputStream(bytes));
+        } catch (Exception error) {
+            Log.w("PlayStudy", "Could not extract requested frame", error);
+            return errorResponse(500);
+        } finally {
+            if (frame != null) frame.recycle();
+        }
+    }
     private volatile String indexKey = "";
 
     @Override public void onCreate(Bundle state) {
@@ -93,6 +159,7 @@ public final class MainActivity extends Activity {
                     return errorResponse(403);
                 }
                 String path = url.getPath();
+                if (path != null && path.startsWith("/frame-preview/")) return previewFrame(url);
                 if (path != null && path.startsWith("/native-media/")) {
                     Log.d("PlayStudy", "Media request " + request.getMethod() + " " + path);
                     String range = null;
@@ -150,6 +217,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        closePreviewDecoder();
         indexKey = "";
         indexExecutor.shutdownNow();
         metadataExecutor.shutdownNow();
@@ -160,6 +228,7 @@ public final class MainActivity extends Activity {
     }
 
     private final class NativeBridge {
+        @JavascriptInterface public boolean hasFramePreview() { return true; }
         @JavascriptInterface public synchronized void prepareFrames(String id) {
             String uri = getPreferences(MODE_PRIVATE).getString("media:" + id, null);
             if (uri == null) return;

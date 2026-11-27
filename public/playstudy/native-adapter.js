@@ -11,6 +11,52 @@
   native.setPlayerOrientation(state.screen === 'player');
 
   STORED_VIDEO_MODES.add('native-uri');
+  window.playStudyCreateFramePreview = (item, media, signal) => {
+    if (item.storageMode !== 'native-uri' || !native.hasFramePreview?.()) return null;
+    let layer = null, pending = null, busy = false, generation = 0;
+    function clear() {
+      generation++;
+      pending = null;
+      layer?.remove();
+      layer = null;
+    }
+    signal.addEventListener('abort', clear, { once: true });
+    async function renderLatest() {
+      if (busy) return;
+      busy = true;
+      try {
+        while (pending && !signal.aborted) {
+          const job = pending;
+          const epoch = generation;
+          pending = null;
+          const image = new Image();
+          image.alt = '';
+          image.className = 'native-frame-preview';
+          image.src = '/frame-preview/' + encodeURIComponent(item.id) + '?at=' + job.time;
+          try {
+            await image.decode();
+          } catch {
+            if (epoch === generation && !pending) job.failed();
+            continue;
+          }
+          if (epoch !== generation || pending || signal.aborted) continue;
+          applyVideoTransform(image, item);
+          if (layer) layer.replaceWith(image);
+          else media.after(image);
+          layer = image;
+          job.commit();
+        }
+      } finally { busy = false; }
+    }
+    return {
+      get busy() { return busy; },
+      clear,
+      show(time, commit, failed) {
+        pending = {time, commit, failed};
+        renderLatest();
+      }
+    };
+  };
   const webHydrateVideo = hydrateVideo;
   hydrateVideo = async function (item, force = false) {
     if (item?.storageMode !== 'native-uri') return webHydrateVideo(item, force);

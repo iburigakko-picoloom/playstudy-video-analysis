@@ -46,9 +46,13 @@ final class FrameTimes {
         } finally { extractor.release(); }
     }
 
-    double step(double seconds, int direction, double duration) {
+    int indexAt(double seconds) {
         int pos = Arrays.binarySearch(pts, Math.round(seconds * 1e6));
-        if (pos < 0) pos = Math.max(0, -pos - 2);
+        return pos < 0 ? Math.max(0, -pos - 2) : pos;
+    }
+
+    double step(double seconds, int direction, double duration) {
+        int pos = indexAt(seconds);
         int next = Math.max(0, Math.min(pts.length - 1, pos + direction));
         if (next == pos) return seconds;
         double end = next + 1 < pts.length ? pts[next + 1] : duration * 1e6;
