@@ -209,7 +209,6 @@
     startTime = 0,
     startX = 0,
     currentX,
-    trackLeft = 0,
     trackWidth,
     duration,
     dragSpan = duration,
@@ -218,18 +217,18 @@
       throw new TypeError('seek mode must be tap or drag');
     }
 
-    for (const [name, value] of Object.entries({ currentX, trackLeft, trackWidth, duration })) {
+    if (mode === 'tap') return null;
+    for (const [name, value] of Object.entries({ currentX, trackWidth, duration })) {
       if (!Number.isFinite(value)) throw new TypeError(`${name} must be finite`);
     }
 
     if (trackWidth <= 0 || duration <= 0) return 0;
-    if (mode === 'drag' && (!Number.isFinite(startTime) || !Number.isFinite(startX))) {
+    if (!Number.isFinite(startTime) || !Number.isFinite(startX)) {
       throw new TypeError('drag start values must be finite');
     }
 
-    const time = mode === 'drag'
-      ? startTime + ((currentX - startX) / trackWidth) * Math.min(duration,Math.max(0,Number.isFinite(dragSpan)?dragSpan:duration))
-      : ((currentX - trackLeft) / trackWidth) * duration;
+    const span = Math.min(duration, Math.max(0, Number.isFinite(dragSpan) ? dragSpan : duration));
+    const time = startTime + ((currentX - startX) / trackWidth) * span;
 
     return Math.min(duration, Math.max(0, time));
   }
@@ -255,17 +254,25 @@
       stop
     };
   }
-  // The media time is committed only on release. A stationary hold is a no-op.
-  function createSeekGesture({holdMs=350,threshold=8}={}){
+  // A drag is anchored to the playhead, even if the finger lands near its edge.
+  function createSeekGesture({threshold=8,hitRadius=22}={}){
     let start=null,preview=null;
     const target=x=>calculateSeekTime({...start,mode:'drag',currentX:x});
     return {
-      begin(values){start={...values};preview=null},
+      begin(values){
+        start=null;preview=null;
+        const {trackLeft,trackWidth,duration,startTime,startX}=values;
+        if(![trackLeft,trackWidth,startX,startTime,duration].every(Number.isFinite) || trackWidth<=0 || duration<=0)return false;
+        const thumbX=trackLeft+trackWidth*Math.max(0,Math.min(1,startTime/duration));
+        if(Math.abs(startX-thumbX)>hitRadius)return false;
+        start={...values};
+        return true;
+      },
       move(x){if(!start)return null;if(Math.abs(x-start.startX)<threshold)return preview=null;return preview=target(x)},
       end(x,at,cancelled=false){
         if(!start)return null;
         const moved=Math.abs(x-start.startX)>=threshold;
-        const value=cancelled?null:moved?target(x):at-start.at>=holdMs?null:calculateSeekTime({...start,mode:'tap',currentX:x});
+        const value=!cancelled&&moved?target(x):null;
         start=null;preview=null;return value;
       },
       cancel(){start=null;preview=null},

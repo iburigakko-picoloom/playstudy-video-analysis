@@ -12,12 +12,23 @@ test('video long-press menu is prevented without blocking memo editing menus',()
  }
 });
 
-function seekFixture(){const gesture=globalThis.PlayStudyGestures.createSeekGesture();gesture.begin({at:100,startTime:40,startX:150,trackLeft:100,trackWidth:200,duration:100});return gesture}
-test('short seek tap commits absolute position only on release',()=>{const g=seekFixture();assert.equal(g.preview,null);assert.equal(g.end(150,449),25)});
+function seekFixture(){const gesture=globalThis.PlayStudyGestures.createSeekGesture();gesture.begin({at:100,startTime:40,startX:150,trackLeft:70,trackWidth:200,duration:100});return gesture}
+test('tapping the playhead never seeks',()=>{const g=seekFixture();assert.equal(g.preview,null);assert.equal(g.end(150,449),null)});
+test('a gesture started on empty track stays ignored even if it crosses the playhead',()=>{
+ const g=globalThis.PlayStudyGestures.createSeekGesture();
+ for(const x of [15,280]){
+  assert.equal(g.begin({startTime:50,startX:x,trackLeft:10,trackWidth:300,duration:100}),false);
+  assert.equal(g.move(160),null);
+  assert.equal(g.end(200,300),null);
+ }
+ assert.equal(g.begin({startTime:50,startX:178,trackLeft:10,trackWidth:300,duration:100}),true);
+ assert.equal(g.move(208),60);
+ assert.equal(g.end(208,300),60);
+});
 test('350ms stationary hold and small jitter never seek',()=>{for(const at of [450,900,5000]){const g=seekFixture();assert.equal(g.move(155),null);assert.equal(g.end(155,at),null)}});
 test('seek drag previews relative time and commits the release position',()=>{const g=seekFixture();assert.equal(g.move(170),50);assert.equal(g.move(190),60);assert.equal(g.end(210,900),70);assert.equal(g.preview,null)});
 test('seek cancel and a hold returning to its origin do not commit',()=>{let g=seekFixture();g.move(210);assert.equal(g.end(210,900,true),null);g=seekFixture();g.move(210);assert.equal(g.end(153,900),null);g=seekFixture();g.cancel();assert.equal(g.end(210,900),null)});
-test('seek clamps both boundaries and precision keeps the same no-op hold',()=>{let g=seekFixture();assert.equal(g.end(900,900),100);g=seekFixture();assert.equal(g.end(-100,900),0);g.begin({at:0,startTime:40,startX:0,trackWidth:200,duration:100,dragSpan:30});assert.equal(g.move(100),55);assert.equal(g.end(100,500),55)});
+test('seek clamps both boundaries and precision keeps the same no-op hold',()=>{let g=seekFixture();assert.equal(g.end(900,900),100);g=seekFixture();assert.equal(g.end(-100,900),0);g.begin({at:0,startTime:40,startX:80,trackLeft:0,trackWidth:200,duration:100,dragSpan:30});assert.equal(g.move(180),55);assert.equal(g.end(180,500),55)});
 
 function boostFixture(initial=1){
  let rate=initial;const timers=[];
@@ -225,14 +236,14 @@ test('rejects invalid configuration and non-monotonic events', () => {
   );
 });
 
-test('seek tap goes to the touched position without marker snapping', () => {
+test('a tap has no seek target', () => {
   assert.equal(calculateSeekTime({
     mode: 'tap',
     currentX: 375,
     trackLeft: 75,
     trackWidth: 400,
     duration: 200,
-  }), 150);
+  }), null);
 });
 
 test('seek drag moves relative to the time at pointer down', () => {
@@ -256,6 +267,6 @@ test('seek drag moves relative to the time at pointer down', () => {
 });
 test('precision drag uses thirty seconds across the track without changing taps',()=>{
  assert.equal(calculateSeekTime({mode:'drag',startTime:1800,startX:100,currentX:150,trackWidth:300,duration:7200,dragSpan:30}),1805);
- assert.equal(calculateSeekTime({mode:'tap',currentX:150,trackLeft:0,trackWidth:300,duration:7200,dragSpan:30}),3600);
+ assert.equal(calculateSeekTime({mode:'tap',currentX:150,trackLeft:0,trackWidth:300,duration:7200,dragSpan:30}),null);
  assert.equal(calculateSeekTime({mode:'drag',startTime:5,startX:100,currentX:400,trackWidth:300,duration:10,dragSpan:30}),10);
 });

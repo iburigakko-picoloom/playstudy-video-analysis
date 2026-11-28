@@ -168,6 +168,21 @@ public final class VideoSmokeTest {
             lift=()=>{window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));b.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1}))};
           press();await sleep(850);lift();await sleep(200);await settle();
           const released=v.currentTime;press();lift();await waitFrame(released+1/60);
+          const hit=document.querySelector('#focus-seek-hit');
+          const bounds=hit.getBoundingClientRect(), width=bounds.width-16, left=bounds.left+8;
+          function pointer(type,x){
+            hit.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,isPrimary:true,
+              pointerId:3,clientX:x,clientY:bounds.top+10,button:0}));
+          }
+          const initial=v.currentTime,thumb=left+width*initial/v.duration;
+          pointer('pointerdown',left);pointer('pointerup',left);
+          pointer('pointerdown',left);pointer('pointermove',thumb);pointer('pointerup',thumb);
+          pointer('pointerdown',thumb);pointer('pointerup',thumb);
+          if(Math.abs(v.currentTime-initial)>.002)throw Error('Track tap or off-thumb drag moved video');
+          pointer('pointerdown',thumb);pointer('pointermove',thumb-36);
+          if(Math.abs(v.currentTime-initial)>.002)throw Error('Preview moved video before release');
+          pointer('pointerup',thumb-36);await settle();
+          if(Math.abs(v.currentTime-(initial-36*v.duration/width))>.005)throw Error('Thumb drag did not seek relatively');
         }
         """;
 
