@@ -176,13 +176,13 @@ public final class VideoSmokeTest {
           }
           const initial=v.currentTime,thumb=left+width*initial/v.duration;
           pointer('pointerdown',left);pointer('pointerup',left);
-          pointer('pointerdown',left);pointer('pointermove',thumb);pointer('pointerup',thumb);
           pointer('pointerdown',thumb);pointer('pointerup',thumb);
-          if(Math.abs(v.currentTime-initial)>.002)throw Error('Track tap or off-thumb drag moved video');
-          pointer('pointerdown',thumb);pointer('pointermove',thumb-36);
+          if(Math.abs(v.currentTime-initial)>.002)throw Error('Track tap moved video');
+          const start=left+width*.25;
+          pointer('pointerdown',start);pointer('pointermove',start-36);
           if(Math.abs(v.currentTime-initial)>.002)throw Error('Preview moved video before release');
-          pointer('pointerup',thumb-36);await settle();
-          if(Math.abs(v.currentTime-(initial-36*v.duration/width))>.005)throw Error('Thumb drag did not seek relatively');
+          pointer('pointerup',start-36);await settle();
+          if(Math.abs(v.currentTime-(initial-36*v.duration/width))>.005)throw Error('Off-thumb drag did not seek relatively');
         }
         """;
 

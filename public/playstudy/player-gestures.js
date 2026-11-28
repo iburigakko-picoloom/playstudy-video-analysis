@@ -254,8 +254,8 @@
       stop
     };
   }
-  // A drag is anchored to the playhead, even if the finger lands near its edge.
-  function createSeekGesture({threshold=8,hitRadius=22}={}){
+  // Distance travelled on the track is relative to the playhead at pointer down.
+  function createSeekGesture({threshold=8}={}){
     let start=null,preview=null;
     const target=x=>calculateSeekTime({...start,mode:'drag',currentX:x});
     return {
@@ -263,8 +263,6 @@
         start=null;preview=null;
         const {trackLeft,trackWidth,duration,startTime,startX}=values;
         if(![trackLeft,trackWidth,startX,startTime,duration].every(Number.isFinite) || trackWidth<=0 || duration<=0)return false;
-        const thumbX=trackLeft+trackWidth*Math.max(0,Math.min(1,startTime/duration));
-        if(Math.abs(startX-thumbX)>hitRadius)return false;
         start={...values};
         return true;
       },

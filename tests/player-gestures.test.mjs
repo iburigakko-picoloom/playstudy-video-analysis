@@ -14,12 +14,15 @@ test('video long-press menu is prevented without blocking memo editing menus',()
 
 function seekFixture(){const gesture=globalThis.PlayStudyGestures.createSeekGesture();gesture.begin({at:100,startTime:40,startX:150,trackLeft:70,trackWidth:200,duration:100});return gesture}
 test('tapping the playhead never seeks',()=>{const g=seekFixture();assert.equal(g.preview,null);assert.equal(g.end(150,449),null)});
-test('a gesture started on empty track stays ignored even if it crosses the playhead',()=>{
+test('dragging from either end of the bar seeks relative to the playhead; tapping never seeks',()=>{
  const g=globalThis.PlayStudyGestures.createSeekGesture();
- for(const x of [15,280]){
-  assert.equal(g.begin({startTime:50,startX:x,trackLeft:10,trackWidth:300,duration:100}),false);
-  assert.equal(g.move(160),null);
-  assert.equal(g.end(200,300),null);
+ for(const [x,dx] of [[15,30],[280,-30]]){
+  const start={startTime:50,startX:x,trackLeft:10,trackWidth:300,duration:100};
+  assert.equal(g.begin(start),true);
+  assert.equal(g.end(x,100),null);
+  g.begin(start);
+  assert.equal(g.move(x+dx),50+dx/3);
+  assert.equal(g.end(x+dx,300),50+dx/3);
  }
  assert.equal(g.begin({startTime:50,startX:178,trackLeft:10,trackWidth:300,duration:100}),true);
  assert.equal(g.move(208),60);
